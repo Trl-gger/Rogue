@@ -46,7 +46,7 @@
       overflow: hidden;
     }
 
-    #app { position: fixed; inset: 0; overflow: hidden; }
+    #app { position: fixed; inset: 0; overflow: hidden; padding-top: env(safe-area-inset-top, 0px); }
 
     .screen {
       position: absolute;
@@ -1968,7 +1968,11 @@ function renderProgressScreen() {
     `<button class="ex-pill${id === progressEx ? ' active' : ''}" data-ex="${id}">${label}</button>`
   ).join('');
   pills.querySelectorAll('.ex-pill').forEach(btn => {
-    btn.addEventListener('click', () => { progressEx = btn.dataset.ex; renderProgressContent(); });
+    btn.addEventListener('click', () => {
+      progressEx = btn.dataset.ex;
+      pills.querySelectorAll('.ex-pill').forEach(b => b.classList.toggle('active', b === btn));
+      renderProgressContent();
+    });
   });
 
   renderProgressContent();
