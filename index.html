@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="IRON LOG" />
+  <meta name="description" content="Weighted calisthenics progression tracker" />
+  <title>IRON LOG</title>
+
+  <style>
+    /* ─── Reset ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ─── Design Tokens ─────────────────────────────────────── */
+    :root {
+      --bg:           #0a0a0a;
+      --surface:      #111111;
+      --surface-high: #1a1a1a;
+      --border:       #222222;
+      --accent:       #ff6600;
+      --success:      #00cc44;
+      --warning:      #ffaa00;
+      --danger:       #cc0000;
+      --text:         #ffffff;
+      --muted:        #888888;
+
+      --phase-novice:     #444444;
+      --phase-an:         #0066cc;
+      --phase-s1:         #ff6600;
+      --phase-s2:         #cc0000;
+
+      --radius-card:   12px;
+      --radius-btn:    8px;
+      --radius-pill:   999px;
+      --btn-height:    48px;
+      --transition:    0.25s ease;
+    }
+
+    /* ─── Base ──────────────────────────────────────────────── */
+    html {
+      height: 100%;
+      background: var(--bg);
+    }
+
+    body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      overflow: hidden;
+    }
+
+    /* ─── App Shell ─────────────────────────────────────────── */
+    #app {
+      position: fixed;
+      inset: 0;
+      overflow: hidden;
+    }
+
+    /* ─── Screen Base ───────────────────────────────────────── */
+    .screen {
+      position: absolute;
+      inset: 0;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity var(--transition);
+    }
+
+    .screen.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    /* ─── Inner Wrapper ─────────────────────────────────────── */
+    .inner {
+      width: 100%;
+      max-width: 480px;
+      padding: env(safe-area-inset-top, 0px) 20px env(safe-area-inset-bottom, 20px);
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ─── Typography ────────────────────────────────────────── */
+    .wordmark {
+      font-size: 48px;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      line-height: 1;
+    }
+
+    .wordmark span { color: var(--accent); }
+
+    .subtitle {
+      font-size: 13px;
+      color: var(--muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .screen-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: var(--text);
+    }
+
+    .screen-sub {
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    /* ─── Buttons ───────────────────────────────────────────── */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: var(--btn-height);
+      min-height: var(--btn-height);
+      border-radius: var(--radius-btn);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      cursor: pointer;
+      border: none;
+      outline: none;
+      transition: opacity 0.15s, transform 0.1s;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+    }
+
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--accent);
+      border: 1.5px solid var(--accent);
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1.5px solid var(--border);
+    }
+
+    /* ─── Cards ─────────────────────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 20px;
+    }
+
+    /* ─── Inputs ────────────────────────────────────────────── */
+    .input-field {
+      width: 100%;
+      height: var(--btn-height);
+      background: var(--surface-high);
+      border: 1px solid var(--border);
+      border-bottom: 2px solid var(--border);
+      border-radius: var(--radius-btn);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 24px;
+      font-weight: 700;
+      padding: 0 16px;
+      outline: none;
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+    }
+
+    .input-field::placeholder { color: #444; font-size: 16px; font-weight: 400; }
+    .input-field:focus { border-bottom-color: var(--accent); }
+
+    /* ─── Phase Badges ──────────────────────────────────────── */
+    .phase-badge {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 10px;
+      border-radius: var(--radius-pill);
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #fff;
+      transition: background 0.2s;
+    }
+
+    .phase-badge.novice         { background: var(--phase-novice); }
+    .phase-badge.advanced_novice { background: var(--phase-an); }
+    .phase-badge.intermediate_s1 { background: var(--phase-s1); }
+    .phase-badge.intermediate_s2 { background: var(--phase-s2); }
+    .phase-badge.empty           { background: #2a2a2a; color: #555; }
+
+    /* ─── Divider ───────────────────────────────────────────── */
+    .divider {
+      height: 1px;
+      background: var(--border);
+      margin: 0 -20px;
+    }
+
+    /* ─── Progress Bar ──────────────────────────────────────── */
+    .progress-wrap {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+
+    /* ─── Back Button ───────────────────────────────────────── */
+    .back-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background: var(--surface-high);
+      border: 1px solid var(--border);
+      border-radius: 50%;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      flex-shrink: 0;
+    }
+
+    .back-btn svg { display: block; }
+
+    /* ─── Quiz Option Buttons ───────────────────────────────── */
+    .option-btn {
+      display: flex;
+      align-items: center;
+      width: 100%;
+      min-height: 56px;
+      padding: 14px 18px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius-card);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 15px;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.15s, background 0.15s;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .option-btn:active { background: var(--surface-high); }
+
+    .option-btn.selected {
+      border-color: var(--accent);
+      background: rgba(255, 102, 0, 0.08);
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    /* ─── Day Schedule Cards ────────────────────────────────── */
+    .day-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 18px 20px;
+    }
+
+    .day-card.heavy  { border-left-color: var(--accent); }
+    .day-card.assist { border-left-color: #0066cc; }
+
+    .day-label {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .day-name {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+
+    .day-type {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      margin-bottom: 12px;
+    }
+
+    .day-type.heavy  { background: rgba(255,102,0,0.15); color: var(--accent); }
+    .day-type.assist { background: rgba(0,102,204,0.15); color: #0099ff; }
+
+    .day-exercises {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .day-exercises li {
+      font-size: 14px;
+      color: var(--muted);
+      padding-left: 14px;
+      position: relative;
+    }
+
+    .day-exercises li::before {
+      content: '—';
+      position: absolute;
+      left: 0;
+      color: var(--border);
+    }
+
+    /* ─── Note Banner ───────────────────────────────────────── */
+    .note-banner {
+      background: rgba(255, 102, 0, 0.08);
+      border: 1px solid rgba(255, 102, 0, 0.2);
+      border-radius: var(--radius-btn);
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--accent);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ─── Today Screen ──────────────────────────────────────── */
+    .today-header {
+      padding: 24px 20px 0;
+      background: var(--bg);
+    }
+
+    .exercise-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .exercise-row:last-child { border-bottom: none; }
+
+    .ex-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .ex-weight {
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--accent);
+    }
+
+    .ex-unit {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ─── Utility ───────────────────────────────────────────── */
+    .gap-4  { height: 4px;  flex-shrink: 0; }
+    .gap-8  { height: 8px;  flex-shrink: 0; }
+    .gap-12 { height: 12px; flex-shrink: 0; }
+    .gap-16 { height: 16px; flex-shrink: 0; }
+    .gap-20 { height: 20px; flex-shrink: 0; }
+    .gap-24 { height: 24px; flex-shrink: 0; }
+    .gap-32 { height: 32px; flex-shrink: 0; }
+    .gap-48 { height: 48px; flex-shrink: 0; }
+
+    .spacer { flex: 1; }
+
+    .muted { color: var(--muted); }
+    .accent { color: var(--accent); }
+
+    /* ─── Weight Input Card ─────────────────────────────────── */
+    .weight-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 16px 16px 18px;
+    }
+
+    .weight-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .weight-card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .weight-card-sub {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .weight-summary {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-card);
+      padding: 16px;
+    }
+
+    .weight-summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .weight-summary-row:last-child { border-bottom: none; }
+
+    .wsr-label { font-size: 13px; color: var(--muted); }
+    .wsr-value { font-size: 15px; font-weight: 700; color: var(--text); }
+    .wsr-value.derived { color: var(--muted); font-weight: 500; }
+
+    /* ─── Input hint ────────────────────────────────────────── */
+    .input-hint {
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 8px;
+    }
+
+    /* ─── Scroll padding for bottom buttons ─────────────────── */
+    .scroll-pad { height: 100px; flex-shrink: 0; }
+
+    /* ─── Sticky bottom bar ─────────────────────────────────── */
+    .sticky-bottom {
+      position: sticky;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: linear-gradient(to top, #0a0a0a 70%, transparent);
+      padding: 16px 20px calc(env(safe-area-inset-bottom, 0px) + 16px);
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 1 — WELCOME
+  ════════════════════════════════════════════════════════ -->
+  <div class="screen" id="s-welcome">
+    <div class="inner" style="justify-content: center; padding-top: 80px; padding-bottom: 60px;">
+      <div style="text-align: center; flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <div style="margin-bottom: 8px;">
+          <!-- Barbell icon -->
+          <svg width="52" height="20" viewBox="0 0 52 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="0" y="7" width="6" height="6" rx="1" fill="#ff6600"/>
+            <rect x="6" y="5" width="4" height="10" rx="1" fill="#ff6600" opacity="0.7"/>
+            <rect x="10" y="1" width="32" height="18" rx="2" fill="none" stroke="#ff6600" stroke-width="0"/>
+            <rect x="10" y="9" width="32" height="2" rx="1" fill="#333"/>
+            <rect x="10" y="4" width="32" height="12" rx="2" fill="none"/>
+            <rect x="14" y="6" width="24" height="8" rx="1" fill="#222"/>
+            <rect x="10" y="6" width="4" height="8" rx="1" fill="#444"/>
+            <rect x="38" y="6" width="4" height="8" rx="1" fill="#444"/>
+            <rect x="42" y="5" width="4" height="10" rx="1" fill="#ff6600" opacity="0.7"/>
+            <rect x="46" y="7" width="6" height="6" rx="1" fill="#ff6600"/>
+          </svg>
+        </div>
+        <div class="gap-24"></div>
+        <div class="wordmark">IRON<span>LOG</span></div>
+        <div class="gap-12"></div>
+        <div class="subtitle">Weighted Calisthenics Tracker</div>
+        <div class="gap-48"></div>
+        <div style="width: 100%; max-width: 320px;">
+          <button class="btn btn-primary" id="btn-get-started">GET STARTED</button>
+        </div>
+        <div class="gap-24"></div>
+        <div style="font-size: 12px; color: #333; max-width: 260px; text-align: center; line-height: 1.6;">
+          Progressive overload tracking for weighted dips, pull-ups &amp; chin-ups
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 2 — QUIZ
+  ════════════════════════════════════════════════════════ -->
+  <div class="screen" id="s-quiz">
+    <div class="inner" style="padding-top: 20px;">
+
+      <!-- Header -->
+      <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+        <button class="back-btn" id="quiz-back">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M11 4L6 9L11 14" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div style="flex: 1;">
+          <div class="progress-wrap">
+            <div class="progress-fill" id="quiz-progress" style="width: 25%"></div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted); margin-top: 6px; letter-spacing: 0.06em;" id="quiz-step-label">STEP 1 OF 4</div>
+        </div>
+      </div>
+
+      <!-- Question area -->
+      <div id="quiz-question" style="font-size: 22px; font-weight: 800; line-height: 1.3; color: var(--text); margin-bottom: 28px; min-height: 70px;"></div>
+
+      <!-- Options -->
+      <div id="quiz-options" style="display: flex; flex-direction: column; gap: 10px;"></div>
+
+      <div class="spacer"></div>
+
+      <!-- Next button (hidden until option selected) -->
+      <div style="padding-bottom: 32px; margin-top: 24px;">
+        <button class="btn btn-primary" id="quiz-next" style="display: none;">NEXT</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 3 — WEIGHT INPUT
+  ════════════════════════════════════════════════════════ -->
+  <div class="screen" id="s-weights">
+    <div class="inner" style="padding-top: 28px;">
+
+      <!-- Header -->
+      <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 6px;">
+        <button class="back-btn" id="weights-back" style="margin-top: 4px; flex-shrink: 0;">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M11 4L6 9L11 14" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div>
+          <div class="screen-title">YOUR STARTING WEIGHTS</div>
+          <div class="gap-6" style="height: 6px;"></div>
+          <div class="screen-sub">Enter the weight you can lift for 6 clean reps on each exercise</div>
+          <div style="font-size: 12px; color: #555; margin-top: 4px;">Added weight only — not bodyweight</div>
+        </div>
+      </div>
+
+      <!-- Quiz note (shown when Q1 = No) -->
+      <div id="weights-note" style="display: none; margin: 16px 0 0;">
+        <div class="note-banner">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <circle cx="8" cy="8" r="7" stroke="#ff6600" stroke-width="1.5"/>
+            <path d="M8 5v4M8 11v0.5" stroke="#ff6600" stroke-width="1.5" stroke-linecap="round"/>
+          </svg>
+          Starting you on novice for all exercises
+        </div>
+      </div>
+
+      <div class="gap-20"></div>
+
+      <!-- Exercise inputs -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+
+        <!-- Dips -->
+        <div class="weight-card" id="card-dips">
+          <div class="weight-card-header">
+            <div>
+              <div class="weight-card-title">Weighted Dips</div>
+              <div class="weight-card-sub">Mon &amp; Fri — Heavy Day</div>
+            </div>
+            <div class="phase-badge empty" id="badge-dips">—</div>
+          </div>
+          <div class="input-hint">6-rep max (kg added)</div>
+          <input class="input-field" id="input-dips" type="number" inputmode="decimal"
+                 min="0" max="200" step="0.5" placeholder="e.g. 40" autocomplete="off" />
+        </div>
+
+        <!-- Pull-ups -->
+        <div class="weight-card" id="card-pullups">
+          <div class="weight-card-header">
+            <div>
+              <div class="weight-card-title">Weighted Pull-ups</div>
+              <div class="weight-card-sub">Mon &amp; Fri — Heavy Day</div>
+            </div>
+            <div class="phase-badge empty" id="badge-pullups">—</div>
+          </div>
+          <div class="input-hint">6-rep max (kg added)</div>
+          <input class="input-field" id="input-pullups" type="number" inputmode="decimal"
+                 min="0" max="200" step="0.5" placeholder="e.g. 20" autocomplete="off" />
+        </div>
+
+        <!-- Chin-ups -->
+        <div class="weight-card" id="card-chinups">
+          <div class="weight-card-header">
+            <div>
+              <div class="weight-card-title">Weighted Chin-ups</div>
+              <div class="weight-card-sub">Wed — Assistance Day</div>
+            </div>
+            <div class="phase-badge empty" id="badge-chinups">—</div>
+          </div>
+          <div class="input-hint">6-rep max (kg added)</div>
+          <input class="input-field" id="input-chinups" type="number" inputmode="decimal"
+                 min="0" max="200" step="0.5" placeholder="e.g. 25" autocomplete="off" />
+        </div>
+
+      </div>
+
+      <div class="gap-20"></div>
+
+      <!-- Calculated summary -->
+      <div class="weight-summary">
+        <div style="font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 10px;">STARTING WEIGHTS</div>
+        <div class="weight-summary-row">
+          <span class="wsr-label">Dips</span>
+          <span class="wsr-value" id="sw-dips">—</span>
+        </div>
+        <div class="weight-summary-row">
+          <span class="wsr-label">Pull-ups</span>
+          <span class="wsr-value" id="sw-pullups">—</span>
+        </div>
+        <div class="weight-summary-row">
+          <span class="wsr-label">Chin-ups</span>
+          <span class="wsr-value" id="sw-chinups">—</span>
+        </div>
+        <div class="weight-summary-row">
+          <span class="wsr-label">Paused Dips <span style="color: #444;">(auto)</span></span>
+          <span class="wsr-value derived" id="sw-paused">—</span>
+        </div>
+      </div>
+
+      <div class="scroll-pad"></div>
+    </div>
+
+    <!-- Sticky confirm button -->
+    <div class="sticky-bottom" style="max-width: 480px; width: 100%; align-self: center;">
+      <button class="btn btn-primary" id="btn-confirm-weights" disabled>CONFIRM WEIGHTS</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 4 — SCHEDULE CONFIRMATION
+  ════════════════════════════════════════════════════════ -->
+  <div class="screen" id="s-schedule">
+    <div class="inner" style="padding-top: 28px;">
+
+      <!-- Header -->
+      <div style="display: flex; align-items: flex-start; gap: 16px; margin-bottom: 28px;">
+        <button class="back-btn" id="schedule-back" style="margin-top: 4px; flex-shrink: 0;">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M11 4L6 9L11 14" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+        <div>
+          <div class="screen-title">YOUR TRAINING SCHEDULE</div>
+          <div class="gap-6" style="height: 6px;"></div>
+          <div class="screen-sub">Mon / Wed / Fri — fixed split</div>
+        </div>
+      </div>
+
+      <!-- Day cards -->
+      <div style="display: flex; flex-direction: column; gap: 12px;">
+
+        <div class="day-card heavy">
+          <div class="day-label">Monday</div>
+          <div class="day-name">HEAVY DAY</div>
+          <div class="day-type heavy">Heavy</div>
+          <ul class="day-exercises">
+            <li>Weighted Dips</li>
+            <li>Weighted Pull-ups</li>
+          </ul>
+        </div>
+
+        <div class="day-card assist">
+          <div class="day-label">Wednesday</div>
+          <div class="day-name">ASSISTANCE DAY</div>
+          <div class="day-type assist">Assistance</div>
+          <ul class="day-exercises">
+            <li>Paused Weighted Dips</li>
+            <li>Weighted Chin-ups</li>
+          </ul>
+        </div>
+
+        <div class="day-card heavy">
+          <div class="day-label">Friday</div>
+          <div class="day-name">HEAVY DAY</div>
+          <div class="day-type heavy">Heavy</div>
+          <ul class="day-exercises">
+            <li>Weighted Dips</li>
+            <li>Weighted Pull-ups</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="gap-20"></div>
+
+      <!-- Info note -->
+      <div style="background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-btn); padding: 14px 16px;">
+        <div style="font-size: 12px; color: var(--muted); line-height: 1.6;">
+          <strong style="color: #555;">NOTE:</strong> Paused Dips weight is automatically calculated from your Dips progression — no manual input needed.
+        </div>
+      </div>
+
+      <div class="scroll-pad"></div>
+    </div>
+
+    <!-- Sticky LET'S GO button -->
+    <div class="sticky-bottom" style="max-width: 480px; width: 100%; align-self: center;">
+      <button class="btn btn-primary" id="btn-lets-go">LET'S GO</button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       SCREEN 5 — TODAY (post-onboarding placeholder)
+  ════════════════════════════════════════════════════════ -->
+  <div class="screen" id="s-today">
+    <div class="inner" style="padding-top: 0;">
+
+      <!-- App header -->
+      <div style="position: sticky; top: 0; background: var(--bg); padding: 24px 0 16px; z-index: 10; border-bottom: 1px solid var(--border); margin-bottom: 24px;">
+        <div style="display: flex; align-items: center; justify-content: space-between;">
+          <div class="wordmark" style="font-size: 28px;">IRON<span style="color: var(--accent);">LOG</span></div>
+          <div style="text-align: right;">
+            <div style="font-size: 11px; color: var(--muted); letter-spacing: 0.06em; text-transform: uppercase;" id="today-day">—</div>
+            <div style="font-size: 12px; color: #555;" id="today-date">—</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Status banner -->
+      <div style="background: rgba(0, 204, 68, 0.06); border: 1px solid rgba(0, 204, 68, 0.2); border-radius: var(--radius-btn); padding: 14px 16px; margin-bottom: 24px;">
+        <div style="font-size: 13px; font-weight: 700; color: var(--success); margin-bottom: 4px;">✓ SETUP COMPLETE</div>
+        <div style="font-size: 13px; color: var(--muted);">Session logging coming in next build</div>
+      </div>
+
+      <!-- Exercise summary title -->
+      <div style="font-size: 11px; font-weight: 800; letter-spacing: 0.1em; color: var(--muted); text-transform: uppercase; margin-bottom: 12px;">YOUR EXERCISES</div>
+
+      <!-- Exercise table (rendered by JS) -->
+      <div class="card" id="today-exercises" style="padding: 4px 16px;"></div>
+
+      <!-- Data confirmation note -->
+      <div class="gap-16"></div>
+      <div style="font-size: 12px; color: #444; text-align: center; line-height: 1.6; padding: 0 8px;">
+        Data saved to localStorage · key: <code style="color: #555;">wct_data</code>
+      </div>
+
+      <!-- Reset link (dev helper) -->
+      <div class="gap-24"></div>
+      <div style="text-align: center;">
+        <button id="btn-reset" style="background: none; border: none; color: #333; font-size: 12px; cursor: pointer; font-family: inherit; padding: 8px 16px;">
+          Reset Onboarding (dev)
+        </button>
+      </div>
+
+      <div class="scroll-pad"></div>
+    </div>
+  </div>
+
+</div><!-- #app -->
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+// ENGINE — required subset
+// ═══════════════════════════════════════════════════════════════
+
+function roundToHalf(value) {
+  return Math.round(value * 2) / 2;
+}
+
+function detectPhase(sixRM) {
+  if (sixRM < 20)  return 'novice';
+  if (sixRM < 40)  return 'advanced_novice';
+  if (sixRM < 60)  return 'intermediate_s1';
+  return 'intermediate_s2';
+}
+
+function calculateStartingWeight(exerciseId, sixRM, regularDipsWeight) {
+  if (exerciseId === 'paused_dips') {
+    return roundToHalf(regularDipsWeight * 0.80);
+  }
+  return sixRM;
+}
+
+function getDefaultData() {
+  return {
+    profile: {
+      onboardingComplete: false,
+      setupDate: null,
+      exportReminderCount: 0
+    },
+    exercises: {
+      dips: {
+        name: 'Weighted Dips',
+        sessionDays: [1, 5],
+        sessionType: 'heavy',
+        phase: null,
+        currentWeight: 0,
+        startingWeight: 0,
+        stallCount: 0,
+        lastDeloadDate: null,
+        pr: null,
+        sessions: []
+      },
+      paused_dips: {
+        name: 'Paused Dips',
+        sessionDays: [3],
+        sessionType: 'assistance',
+        followsExercise: 'dips',
+        currentWeight: 0,
+        startingWeight: 0,
+        sessions: []
+      },
+      pullups: {
+        name: 'Weighted Pull-ups',
+        sessionDays: [1, 5],
+        sessionType: 'heavy',
+        phase: null,
+        currentWeight: 0,
+        startingWeight: 0,
+        stallCount: 0,
+        lastDeloadDate: null,
+        pr: null,
+        sessions: []
+      },
+      chinups: {
+        name: 'Weighted Chin-ups',
+        sessionDays: [3],
+        sessionType: 'assistance',
+        phase: null,
+        currentWeight: 0,
+        startingWeight: 0,
+        stallCount: 0,
+        lastDeloadDate: null,
+        pr: null,
+        sessions: []
+      }
+    }
+  };
+}
+
+const STORAGE_KEY = 'wct_data';
+
+function saveData(data) {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+  catch(e) { console.error('[saveData]', e); }
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) {
+    console.error('[loadData]', e);
+    return null;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// APP STATE
+// ═══════════════════════════════════════════════════════════════
+
+const state = {
+  // Quiz
+  currentQuestion: 1,
+  quizAnswers: { q1: null, q2: null, q3: null, q4: null },
+  selectedOption: null,   // which option is highlighted on current Q
+  quizNote: false,        // show novice note on weights screen
+
+  // Navigation history for back button
+  navHistory: [],         // array of { screen, question }
+
+  // Weight inputs (raw string values)
+  weights: { dips: '', pullups: '', chinups: '' }
+};
+
+// ═══════════════════════════════════════════════════════════════
+// QUIZ QUESTIONS
+// ═══════════════════════════════════════════════════════════════
+
+const QUIZ = [
+  {
+    id: 1,
+    question: 'Have you done weighted calisthenics before?',
+    options: ['Yes', 'No, just starting']
+  },
+  {
+    id: 2,
+    question: 'Have you followed a structured weighted program?',
+    options: ['Yes', 'No, trained casually']
+  },
+  {
+    id: 3,
+    question: 'What is your current training level?',
+    options: [
+      'Still building base strength',
+      'Consistent progress, under 40kg added',
+      'Strong, 40–60kg added on main lifts',
+      'Advanced, 60kg+ added'
+    ]
+  },
+  {
+    id: 4,
+    question: 'Do you track training cycles and mesocycles?',
+    options: ['Yes', 'No']
+  }
+];
+
+// ═══════════════════════════════════════════════════════════════
+// SCREEN MANAGEMENT
+// ═══════════════════════════════════════════════════════════════
+
+let currentScreen = null;
+
+function showScreen(id, fromHistory) {
+  if (!fromHistory && currentScreen) {
+    state.navHistory.push({
+      screen: currentScreen,
+      question: state.currentQuestion,
+      selectedOption: state.selectedOption
+    });
+  }
+
+  // Deactivate all
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+
+  // Activate target
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.add('active');
+    el.scrollTop = 0;
+  }
+
+  currentScreen = id;
+
+  // Screen-specific render
+  if (id === 's-quiz')     renderQuiz();
+  if (id === 's-weights')  renderWeightsScreen();
+  if (id === 's-today')    renderTodayScreen();
+}
+
+function goBack() {
+  if (state.navHistory.length === 0) return;
+  const prev = state.navHistory.pop();
+
+  // Restore quiz state if going back into quiz
+  if (prev.screen === 's-quiz') {
+    state.currentQuestion = prev.question;
+    state.selectedOption  = prev.selectedOption;
+    // Clear answer for this question (we're re-entering it)
+    state.quizAnswers[`q${state.currentQuestion}`] = null;
+  }
+
+  // Deactivate all, activate previous
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById(prev.screen);
+  if (el) { el.classList.add('active'); el.scrollTop = 0; }
+  currentScreen = prev.screen;
+
+  if (prev.screen === 's-quiz') renderQuiz();
+}
+
+// ═══════════════════════════════════════════════════════════════
+// QUIZ RENDERER
+// ═══════════════════════════════════════════════════════════════
+
+function renderQuiz() {
+  const q = QUIZ[state.currentQuestion - 1];
+  const nextBtn = document.getElementById('quiz-next');
+
+  // Progress
+  document.getElementById('quiz-progress').style.width = `${(state.currentQuestion / 4) * 100}%`;
+  document.getElementById('quiz-step-label').textContent = `STEP ${state.currentQuestion} OF 4`;
+
+  // Question text
+  document.getElementById('quiz-question').textContent = q.question;
+
+  // Options
+  const optContainer = document.getElementById('quiz-options');
+  optContainer.innerHTML = '';
+  const savedAnswer = state.quizAnswers[`q${state.currentQuestion}`];
+
+  q.options.forEach((opt, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'option-btn' + (savedAnswer === idx ? ' selected' : '');
+    btn.textContent = opt;
+    btn.addEventListener('click', () => selectOption(idx));
+    optContainer.appendChild(btn);
+  });
+
+  // Next button visibility
+  const hasAnswer = savedAnswer !== null && savedAnswer !== undefined;
+  nextBtn.style.display = hasAnswer ? 'flex' : 'none';
+}
+
+function selectOption(idx) {
+  state.selectedOption = idx;
+  state.quizAnswers[`q${state.currentQuestion}`] = idx;
+
+  // Update button styles
+  document.querySelectorAll('#quiz-options .option-btn').forEach((btn, i) => {
+    btn.classList.toggle('selected', i === idx);
+  });
+
+  // Show next button
+  const nextBtn = document.getElementById('quiz-next');
+  nextBtn.style.display = 'flex';
+}
+
+function advanceQuiz() {
+  const q  = state.currentQuestion;
+  const ans = state.quizAnswers[`q${q}`]; // 0-based index
+
+  if (q === 1) {
+    if (ans === 1) {
+      // "No, just starting" → skip to weights with note
+      state.quizNote = true;
+      state.currentQuestion = 1;
+      showScreen('s-weights');
+      return;
+    }
+    // Yes → Q2
+    state.currentQuestion = 2;
+    state.selectedOption = null;
+    renderQuiz();
+    return;
+  }
+
+  if (q === 2) {
+    if (ans === 1) {
+      // "No, trained casually" → skip to weights, no note
+      state.quizNote = false;
+      showScreen('s-weights');
+      return;
+    }
+    // Yes → Q3
+    state.currentQuestion = 3;
+    state.selectedOption = null;
+    renderQuiz();
+    return;
+  }
+
+  if (q === 3) {
+    // → Q4
+    state.currentQuestion = 4;
+    state.selectedOption = null;
+    renderQuiz();
+    return;
+  }
+
+  if (q === 4) {
+    // All done → weights
+    state.quizNote = false;
+    showScreen('s-weights');
+    return;
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// WEIGHT SCREEN
+// ═══════════════════════════════════════════════════════════════
+
+const PHASE_LABELS = {
+  novice:           'NOVICE',
+  advanced_novice:  'ADV. NOVICE',
+  intermediate_s1:  'INTER. S1',
+  intermediate_s2:  'INTER. S2'
+};
+
+function renderWeightsScreen() {
+  // Show/hide note
+  const noteEl = document.getElementById('weights-note');
+  noteEl.style.display = state.quizNote ? 'block' : 'none';
+
+  // Set input values (restore from state)
+  ['dips', 'pullups', 'chinups'].forEach(ex => {
+    const inp = document.getElementById(`input-${ex}`);
+    if (inp && state.weights[ex]) inp.value = state.weights[ex];
+  });
+
+  updateWeightDisplays();
+}
+
+function updateWeightDisplays() {
+  ['dips', 'pullups', 'chinups'].forEach(ex => {
+    const inp   = document.getElementById(`input-${ex}`);
+    const badge = document.getElementById(`badge-${ex}`);
+    const swEl  = document.getElementById(`sw-${ex}`);
+
+    if (!inp || !badge) return;
+
+    const val = parseFloat(inp.value);
+    const hasVal = inp.value.trim() !== '' && val >= 0;
+
+    // Update state
+    state.weights[ex] = inp.value;
+
+    if (hasVal) {
+      const phase = detectPhase(val);
+      badge.textContent = PHASE_LABELS[phase] || phase;
+      badge.className = `phase-badge ${phase}`;
+      swEl.textContent = `${val}kg`;
+    } else {
+      badge.textContent = '—';
+      badge.className = 'phase-badge empty';
+      swEl.textContent = '—';
+    }
+  });
+
+  // Paused dips
+  const dipsVal   = parseFloat(document.getElementById('input-dips')?.value) || 0;
+  const pdEl      = document.getElementById('sw-paused');
+  const dipsHasVal = document.getElementById('input-dips')?.value.trim() !== '';
+
+  if (dipsHasVal && dipsVal >= 0) {
+    const pdWeight = calculateStartingWeight('paused_dips', null, dipsVal);
+    pdEl.textContent = `${pdWeight}kg`;
+  } else {
+    pdEl.textContent = '—';
+  }
+
+  // Confirm button state
+  const allFilled = ['dips', 'pullups', 'chinups'].every(ex => {
+    const v = document.getElementById(`input-${ex}`)?.value.trim();
+    return v !== '' && parseFloat(v) >= 0;
+  });
+
+  document.getElementById('btn-confirm-weights').disabled = !allFilled;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// SAVE & COMPLETE
+// ═══════════════════════════════════════════════════════════════
+
+function completeOnboarding() {
+  const dipsVal    = parseFloat(state.weights.dips)    || 0;
+  const pullupsVal = parseFloat(state.weights.pullups) || 0;
+  const chinupsVal = parseFloat(state.weights.chinups) || 0;
+
+  const dipsPhase    = detectPhase(dipsVal);
+  const pullupsPhase = detectPhase(pullupsVal);
+  const chinupsPhase = detectPhase(chinupsVal);
+
+  const dipsSW    = calculateStartingWeight('dips',    dipsVal,    null);
+  const pullupsSW = calculateStartingWeight('pullups', pullupsVal, null);
+  const chinupsSW = calculateStartingWeight('chinups', chinupsVal, null);
+  const pausedSW  = calculateStartingWeight('paused_dips', null,   dipsSW);
+
+  const data = getDefaultData();
+
+  data.profile.onboardingComplete = true;
+  data.profile.setupDate          = new Date().toISOString();
+
+  // Dips
+  data.exercises.dips.phase         = dipsPhase;
+  data.exercises.dips.currentWeight  = dipsSW;
+  data.exercises.dips.startingWeight = dipsSW;
+
+  // Paused Dips
+  data.exercises.paused_dips.currentWeight  = pausedSW;
+  data.exercises.paused_dips.startingWeight = pausedSW;
+
+  // Pull-ups
+  data.exercises.pullups.phase         = pullupsPhase;
+  data.exercises.pullups.currentWeight  = pullupsSW;
+  data.exercises.pullups.startingWeight = pullupsSW;
+
+  // Chin-ups
+  data.exercises.chinups.phase         = chinupsPhase;
+  data.exercises.chinups.currentWeight  = chinupsSW;
+  data.exercises.chinups.startingWeight = chinupsSW;
+
+  // Store quiz answers for reference
+  data.profile.quizAnswers = state.quizAnswers;
+
+  saveData(data);
+
+  showScreen('s-today');
+}
+
+// ═══════════════════════════════════════════════════════════════
+// TODAY SCREEN
+// ═══════════════════════════════════════════════════════════════
+
+function renderTodayScreen() {
+  // Date
+  const now  = new Date();
+  const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  document.getElementById('today-day').textContent  = days[now.getDay()].toUpperCase();
+  document.getElementById('today-date').textContent = `${now.getDate()} ${months[now.getMonth()]} ${now.getFullYear()}`;
+
+  // Load data
+  const data = loadData();
+  if (!data) {
+    document.getElementById('today-exercises').innerHTML =
+      '<div style="padding:16px;color:var(--muted);font-size:13px;">No data found.</div>';
+    return;
+  }
+
+  const exOrder = ['dips', 'paused_dips', 'pullups', 'chinups'];
+
+  const rows = exOrder.map(id => {
+    const ex = data.exercises[id];
+    const phase = ex.phase || '—';
+    const phaseLabel = PHASE_LABELS[phase] || (id === 'paused_dips' ? 'DERIVED' : '—');
+    const phaseClass = ex.phase || (id === 'paused_dips' ? 'empty' : 'empty');
+
+    return `
+      <div class="exercise-row">
+        <div>
+          <div class="ex-name">${ex.name}</div>
+          <div style="margin-top:4px;">
+            <span class="phase-badge ${phaseClass}">${phaseLabel}</span>
+          </div>
+        </div>
+        <div style="text-align:right;">
+          <div class="ex-weight">${ex.startingWeight}<span style="font-size:13px;color:var(--muted);margin-left:2px;">kg</span></div>
+          <div class="ex-unit">starting</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  document.getElementById('today-exercises').innerHTML = rows;
+}
+
+// ═══════════════════════════════════════════════════════════════
+// EVENT LISTENERS
+// ═══════════════════════════════════════════════════════════════
+
+// Welcome → Quiz
+document.getElementById('btn-get-started').addEventListener('click', () => {
+  state.currentQuestion = 1;
+  state.selectedOption  = null;
+  state.quizAnswers     = { q1: null, q2: null, q3: null, q4: null };
+  state.quizNote        = false;
+  showScreen('s-quiz');
+});
+
+// Quiz back
+document.getElementById('quiz-back').addEventListener('click', goBack);
+
+// Quiz next
+document.getElementById('quiz-next').addEventListener('click', () => {
+  // Push current quiz state before advancing (so back works)
+  // advanceQuiz handles the internal nav push via showScreen
+  advanceQuiz();
+});
+
+// Weights back
+document.getElementById('weights-back').addEventListener('click', goBack);
+
+// Weight inputs — live update
+['dips', 'pullups', 'chinups'].forEach(ex => {
+  const inp = document.getElementById(`input-${ex}`);
+  if (inp) {
+    inp.addEventListener('input', updateWeightDisplays);
+    inp.addEventListener('change', updateWeightDisplays);
+  }
+});
+
+// Confirm weights → Schedule
+document.getElementById('btn-confirm-weights').addEventListener('click', () => {
+  showScreen('s-schedule');
+});
+
+// Schedule back
+document.getElementById('schedule-back').addEventListener('click', goBack);
+
+// LET'S GO
+document.getElementById('btn-lets-go').addEventListener('click', completeOnboarding);
+
+// Reset (dev)
+document.getElementById('btn-reset').addEventListener('click', () => {
+  localStorage.removeItem(STORAGE_KEY);
+  state.currentQuestion = 1;
+  state.selectedOption  = null;
+  state.quizAnswers     = { q1: null, q2: null, q3: null, q4: null };
+  state.quizNote        = false;
+  state.weights         = { dips: '', pullups: '', chinups: '' };
+  state.navHistory      = [];
+  showScreen('s-welcome');
+});
+
+// ═══════════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════════
+
+(function init() {
+  const data = loadData();
+  if (data && data.profile && data.profile.onboardingComplete) {
+    // Already onboarded — jump straight to today
+    // No push to navHistory so back button doesn't loop
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('s-today').classList.add('active');
+    currentScreen = 's-today';
+    renderTodayScreen();
+  } else {
+    document.getElementById('s-welcome').classList.add('active');
+    currentScreen = 's-welcome';
+  }
+})();
+</script>
+</body>
+</html>
