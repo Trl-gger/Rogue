@@ -46,13 +46,15 @@
       overflow: hidden;
     }
 
-    #app { position: fixed; inset: 0; overflow: hidden; padding-top: env(safe-area-inset-top, 0px); }
+    #app { position: fixed; inset: 0; overflow: hidden; }
 
     .screen {
       position: absolute;
-      inset: 0;
+      top: env(safe-area-inset-top, 0px);
+      left: 0;
+      right: 0;
+      bottom: 0;
       overflow-y: auto;
-      overflow-x: hidden;
       -webkit-overflow-scrolling: touch;
       display: flex;
       flex-direction: column;
