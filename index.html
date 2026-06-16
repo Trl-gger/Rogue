@@ -254,21 +254,6 @@
     }
     .set-check { color: var(--success); font-size: 14px; }
 
-    /* ── Rest Timer ── */
-    .timer-wrap { display: flex; flex-direction: column; align-items: center; padding: 16px 0 20px; }
-    .timer-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 16px; }
-    .timer-ring-wrap { position: relative; width: 148px; height: 148px; }
-    .timer-ring-svg { width: 148px; height: 148px; }
-    .timer-number {
-      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-      font-size: 36px; font-weight: 900; color: var(--accent); font-variant-numeric: tabular-nums;
-    }
-    .timer-skip {
-      margin-top: 16px; background: none; border: 1px solid var(--border);
-      border-radius: var(--radius-btn); color: var(--muted); font-family: inherit;
-      font-size: 12px; font-weight: 700; padding: 8px 24px; cursor: pointer;
-      letter-spacing: 0.06em; text-transform: uppercase;
-    }
 
     /* ── Exercise Complete ── */
     .ex-complete-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 20px; margin-bottom: 14px; }
@@ -985,11 +970,25 @@
 
 function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
-function detectPhase(sixRM) {
-  if (sixRM < 20) return 'novice';
-  if (sixRM < 40) return 'advanced_novice';
-  if (sixRM < 60) return 'intermediate_s1';
-  return 'intermediate_s2';
+function detectPhase(exerciseId, weight) {
+  if (exerciseId === 'dips') {
+    if (weight < 40) return 'novice';
+    if (weight < 70) return 'advanced_novice';
+    if (weight < 100) return 'intermediate_s1';
+    return 'intermediate_s2';
+  }
+  if (exerciseId === 'pullups') {
+    if (weight < 25) return 'novice';
+    if (weight < 50) return 'advanced_novice';
+    if (weight < 70) return 'intermediate_s1';
+    return 'intermediate_s2';
+  }
+  if (exerciseId === 'chinups') {
+    if (weight < 30) return 'novice';
+    if (weight < 55) return 'advanced_novice';
+    if (weight < 75) return 'intermediate_s1';
+    return 'intermediate_s2';
+  }
 }
 
 function calculateStartingWeight(exerciseId, sixRM, regularDipsWeight) {
@@ -1016,7 +1015,7 @@ function getIncrementNovice({ reps, rir }) {
 }
 
 function getIncrementAdvancedNovice({ reps, rir }) {
-  if (reps >= 6) return rir >= 1 ? { increment: 2.5, stall: false, ds: false } : { increment: 1.25, stall: false, ds: false };
+  if (reps >= 6) return (rir >= 1 && rir <= 2) ? { increment: 2.5, stall: false, ds: false } : { increment: 1.25, stall: false, ds: false };
   if (reps === 5) return rir >= 1 ? { increment: 1.25, stall: false, ds: false } : { increment: 0.5, stall: false, ds: false };
   if (reps === 4) return rir >= 1 ? { increment: 0.5, stall: false, ds: false } : { increment: 0, stall: true, ds: false };
   if (reps === 3) return { increment: 0, stall: true, ds: true };
@@ -1104,7 +1103,7 @@ function getDefaultData() {
       dips:       { name: 'Weighted Dips',     sessionDays: [1,5], sessionType: 'heavy',     phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, lastDeloadDate: null, pr: null, sessions: [] },
       paused_dips:{ name: 'Paused Dips',       sessionDays: [3],   sessionType: 'assistance', followsExercise: 'dips', currentWeight: 0, startingWeight: 0, sessions: [] },
       pullups:    { name: 'Weighted Pull-ups',  sessionDays: [1,5], sessionType: 'heavy',     phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, lastDeloadDate: null, pr: null, sessions: [] },
-      chinups:    { name: 'Weighted Chin-ups',  sessionDays: [3],   sessionType: 'assistance', phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, lastDeloadDate: null, pr: null, sessions: [] }
+      chinups:    { name: 'Weighted Chin-ups',  sessionDays: [3],   sessionType: 'heavy',      phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, lastDeloadDate: null, pr: null, sessions: [] }
     }
   };
 }
@@ -1120,8 +1119,7 @@ const PHASE_LABELS = { novice: 'Novice', advanced_novice: 'Adv. Novice', interme
 const PHASE_COLORS = { novice: '#444', advanced_novice: '#0066cc', intermediate_s1: '#ff6600', intermediate_s2: '#cc0000' };
 const INDEPENDENT_EX = ['dips', 'pullups', 'chinups'];
 const ALL_EX_IDS     = ['dips', 'pullups', 'paused_dips', 'chinups'];
-const TIMER_DURATION = 180;
-const RING_CIRC = 301.59; // 2π × 48
+
 
 // ═══════════════════════════════════════════════════════════════
 // RANKING SYSTEM
@@ -1195,8 +1193,8 @@ const SS = {
   exercises: [], exSessionTypes: {}, currentExIdx: 0, currentSetNum: 1,
   loggedSets: {}, prescriptions: {}, prResults: {},
   sessionType: null, wasUnscheduled: false, notes: '',
-  view: 'logging',     // 'logging' | 'resting' | 'exercise_complete'
-  timerInterval: null, timerRemaining: 0, sessionDate: null
+  view: 'logging',     // 'logging' | 'exercise_complete'
+  sessionDate: null
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -1272,7 +1270,7 @@ function updateWeightDisplays() {
     const val = parseFloat(inp.value);
     const has = inp.value.trim() !== '' && val >= 0;
     if (has) {
-      const phase = detectPhase(val);
+      const phase = detectPhase(ex, val);
       badge.textContent = PHASE_LABELS[phase] || phase;
       badge.className = `phase-badge ${phase}`;
       sw.textContent = `${val}kg`;
@@ -1298,9 +1296,9 @@ function completeOnboarding() {
   const data = getDefaultData();
   data.profile.onboardingComplete = true;
   data.profile.setupDate = new Date().toISOString();
-  data.exercises.dips.phase = detectPhase(dv); data.exercises.dips.currentWeight = dv; data.exercises.dips.startingWeight = dv; data.exercises.dips.sixRM = dv; data.exercises.dips.oneRM = d1;
-  data.exercises.pullups.phase = detectPhase(pv); data.exercises.pullups.currentWeight = pv; data.exercises.pullups.startingWeight = pv; data.exercises.pullups.sixRM = pv; data.exercises.pullups.oneRM = p1;
-  data.exercises.chinups.phase = detectPhase(cv); data.exercises.chinups.currentWeight = cv; data.exercises.chinups.startingWeight = cv; data.exercises.chinups.sixRM = cv; data.exercises.chinups.oneRM = c1;
+  data.exercises.dips.phase = detectPhase('dips', dv); data.exercises.dips.currentWeight = dv; data.exercises.dips.startingWeight = dv; data.exercises.dips.sixRM = dv; data.exercises.dips.oneRM = d1;
+  data.exercises.pullups.phase = detectPhase('pullups', pv); data.exercises.pullups.currentWeight = pv; data.exercises.pullups.startingWeight = pv; data.exercises.pullups.sixRM = pv; data.exercises.pullups.oneRM = p1;
+  data.exercises.chinups.phase = detectPhase('chinups', cv); data.exercises.chinups.currentWeight = cv; data.exercises.chinups.startingWeight = cv; data.exercises.chinups.sixRM = cv; data.exercises.chinups.oneRM = c1;
   const pd = calculateStartingWeight('paused_dips', null, dv);
   data.exercises.paused_dips.currentWeight = pd; data.exercises.paused_dips.startingWeight = pd;
   saveData(data);
@@ -1470,7 +1468,7 @@ function startSession(exercises, sessionType, day) {
   Object.assign(SS, {
     exercises, sessionType, wasUnscheduled: false, currentExIdx: 0, currentSetNum: 1,
     loggedSets: {}, prescriptions: {}, prResults: {}, notes: '',
-    view: 'logging', timerInterval: null, timerRemaining: 0,
+    view: 'logging',
     sessionDate: new Date().toISOString().split('T')[0]
   });
   SS.exSessionTypes = {};
@@ -1523,12 +1521,6 @@ function renderSessionContent() {
     return;
   }
 
-  if (SS.view === 'resting') {
-    content.innerHTML = buildTimerHTML() + buildPrevSetsHTML(sets);
-    updateTimerDisplay();
-    document.getElementById('timer-skip')?.addEventListener('click', skipTimer);
-    return;
-  }
 
   // 'logging'
   content.innerHTML = buildSetInputHTML() + buildPrevSetsHTML(sets);
@@ -1561,23 +1553,6 @@ function buildSetInputHTML() {
     </div>`;
 }
 
-function buildTimerHTML() {
-  const offset = RING_CIRC * (1 - Math.max(0, SS.timerRemaining) / TIMER_DURATION);
-  return `
-    <div class="timer-wrap">
-      <div class="timer-label">REST</div>
-      <div class="timer-ring-wrap">
-        <svg class="timer-ring-svg" viewBox="0 0 110 110" style="transform:rotate(-90deg);">
-          <circle cx="55" cy="55" r="48" fill="none" stroke="#222" stroke-width="8"/>
-          <circle cx="55" cy="55" r="48" fill="none" stroke="#ff6600" stroke-width="8"
-            stroke-dasharray="${RING_CIRC.toFixed(2)}" stroke-dashoffset="${offset.toFixed(1)}"
-            id="timer-ring" stroke-linecap="round"/>
-        </svg>
-        <div class="timer-number" id="timer-time">${formatTime(SS.timerRemaining)}</div>
-      </div>
-      <button class="timer-skip" id="timer-skip">SKIP REST</button>
-    </div>`;
-}
 
 function buildPrevSetsHTML(sets) {
   if (!sets?.length) return '';
@@ -1632,7 +1607,6 @@ function handleLogSet() {
   SS.loggedSets[exId].push({ reps, rir });
 
   const count = SS.loggedSets[exId].length;
-  stopRestTimer();
 
   if (count >= 3) {
     calcPrescription(exId);
@@ -1640,11 +1614,6 @@ function handleLogSet() {
     SS.currentSetNum = 3;
   } else {
     SS.currentSetNum = count + 1;
-    SS.timerRemaining = TIMER_DURATION;  // set BEFORE render so ring initialises full
-    SS.view = 'resting';
-    renderSessionScreen();
-    startRestTimer();
-    return;
   }
   renderSessionScreen();
 }
@@ -1661,38 +1630,6 @@ function calcPrescription(exId) {
   SS.prResults[exId]     = checkForPR(ex, { sets: SS.loggedSets[exId], actualWeight: ex.currentWeight });
 }
 
-// ─── Timer ───────────────────────────────────────────────────
-
-function startRestTimer() {
-  // SS.timerRemaining is pre-set by handleLogSet so the ring starts full
-  SS.timerInterval = setInterval(() => {
-    SS.timerRemaining--;
-    updateTimerDisplay();
-    if (SS.timerRemaining <= 0) {
-      stopRestTimer();
-      SS.view = 'logging';
-      renderSessionScreen();
-    }
-  }, 1000);
-}
-
-function stopRestTimer() {
-  if (SS.timerInterval) { clearInterval(SS.timerInterval); SS.timerInterval = null; }
-}
-
-function updateTimerDisplay() {
-  const t = document.getElementById('timer-time');
-  const r = document.getElementById('timer-ring');
-  if (t) t.textContent = formatTime(SS.timerRemaining);
-  if (r) r.setAttribute('stroke-dashoffset', (RING_CIRC * (1 - Math.max(0,SS.timerRemaining)/TIMER_DURATION)).toFixed(1));
-}
-
-function skipTimer() { stopRestTimer(); SS.view = 'logging'; renderSessionScreen(); }
-
-function formatTime(s) {
-  const sec = Math.max(0, s);
-  return `${Math.floor(sec/60)}:${(sec%60).toString().padStart(2,'0')}`;
-}
 
 // ─── Navigation ──────────────────────────────────────────────
 
