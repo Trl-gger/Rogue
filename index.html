@@ -107,7 +107,7 @@
       background: var(--surface-high); border: 1px solid var(--border);
       border-bottom: 2px solid var(--border); border-radius: var(--radius-btn);
       color: var(--text); font-family: inherit; font-size: 24px; font-weight: 700;
-      padding: 0 16px; outline: none; transition: border-color 0.15s; -webkit-appearance: none;
+      padding: 0 16px; outline: none; transition: border-color 0.15s; -webkit-appearance: none; appearance: none;
     }
     .input-field::placeholder { color: #444; font-size: 16px; font-weight: 400; }
     .input-field:focus { border-bottom-color: var(--accent); }
@@ -240,7 +240,7 @@
       border: 1px solid var(--border); border-bottom: 2px solid var(--border);
       border-radius: var(--radius-btn); color: var(--text); font-family: inherit;
       font-size: 40px; font-weight: 800; text-align: center; outline: none;
-      transition: border-color 0.15s; -webkit-appearance: none;
+      transition: border-color 0.15s; -webkit-appearance: none; appearance: none;
     }
     .set-number-input:focus { border-bottom-color: var(--accent); }
     .set-number-input::placeholder { color: #333; font-size: 24px; font-weight: 400; }
@@ -1033,13 +1033,19 @@ function getIncrementIntermediateS1({ reps }) {
 
 function getIncrementIntermediateS2(hardestSet, allSets) {
   const { rir } = hardestSet;
-  if (rir >= 2) return { increment: 2.5, stall: false, ds: false };
+  if (rir >= 2)  return { increment: 2.5,  stall: false, ds: false };
   if (rir === 1) return { increment: 1.25, stall: false, ds: false };
-  if (rir === 0) return { increment: 0.5, stall: false, ds: false };
-  if (rir === -1) {
-    const n = allSets.filter(s => s.rir < 0).length;
-    return n === 1 ? { increment: 0.5, stall: false, ds: false } : { increment: 0, stall: true, ds: false };
+  if (rir === 0) {
+    const missedSets = allSets.filter(s => s.rir === 0 && s.reps < 6).length;
+    if (missedSets === 0) {
+      return { increment: 0.5, stall: false, ds: false }; // clean RIR 0, hit target in all sets
+    } else if (missedSets === 1) {
+      return { increment: 0.5, stall: false, ds: false }; // missed reps in exactly 1 set
+    } else {
+      return { increment: 0, stall: true,  ds: false };   // missed reps in 2+ sets
+    }
   }
+  // rir > 0 already handled above; this branch should not be reachable
   return { increment: 0, stall: true, ds: false };
 }
 
@@ -1052,19 +1058,21 @@ function evaluateStall(stallCount, didStall, incrementGiven) {
 function calculateDeloadWeight(currentWeight) { return roundToHalf(currentWeight * 0.90); }
 
 function getNextPrescription(exercise, lastSession) {
-  if (exercise.followsExercise) {
-    const dw = roundToHalf(exercise.parentCurrentWeight * 0.80);
-    return { nextWeight: dw, increment: dw - exercise.currentWeight, stallDetected: false, deloadSuggested: false, phaseTransitionSuggested: false, message: `Derived: ${exercise.parentCurrentWeight}kg × 0.80`, newStallCount: 0 };
-  }
+  // Dead code removed: paused_dips (the only followsExercise exercise) is intercepted in
+  // calcPrescription before getNextPrescription is ever called for it.
   const hs = getHardestSet(lastSession.sets);
   let result;
   switch (exercise.phase) {
     case 'novice':          result = getIncrementNovice(hs); break;
     case 'advanced_novice': result = getIncrementAdvancedNovice(hs); break;
     case 'intermediate_s1':
-      result = lastSession.sessionType === 'pr'
-        ? getIncrementIntermediateS1(hs)
-        : { increment: 0, stall: false, ds: false };
+      // chinups has no dedicated PR day (it trains Wed only, always sessionType 'heavy').
+      // Always apply the S1 increment table for chinups so it never silently flatlines.
+      if (exercise.id === 'chinups' || lastSession.sessionType === 'pr') {
+        result = getIncrementIntermediateS1(hs);
+      } else {
+        result = { increment: 0, stall: false, ds: false };
+      }
       break;
     case 'intermediate_s2': result = getIncrementIntermediateS2(hs, lastSession.sets); break;
     default: result = { increment: 0, stall: false, ds: false };
@@ -1101,7 +1109,7 @@ function getDefaultData() {
     profile: { onboardingComplete: false, setupDate: null, exportReminderCount: 0 },
     exercises: {
       dips:       { name: 'Weighted Dips',     sessionDays: [1,5], sessionType: 'heavy',     phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, lastDeloadDate: null, pr: null, sessions: [] },
-      paused_dips:{ name: 'Paused Dips',       sessionDays: [3],   sessionType: 'assistance', followsExercise: 'dips', currentWeight: 0, startingWeight: 0, sessions: [] },
+      paused_dips:{ name: 'Paused Dips',       sessionDays: [3],   sessionType: 'assistance', followsExercise: 'dips', currentWeight: 0, startingWeight: 0, pendingDipsIncrement: 0, sessions: [] },
       pullups:    { name: 'Weighted Pull-ups',  sessionDays: [1,5], sessionType: 'heavy',     phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, lastDeloadDate: null, pr: null, sessions: [] },
       chinups:    { name: 'Weighted Chin-ups',  sessionDays: [3],   sessionType: 'heavy',      phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, lastDeloadDate: null, pr: null, sessions: [] }
     }
@@ -1372,20 +1380,29 @@ function renderTodayScreen() {
 
     for (const exId of exercises) {
       const ex = data.exercises[exId];
-      const rr = !ex.phase || ex.phase === 'novice' ? '5–8' : '3–6';
-      const derived = !!ex.followsExercise;
-      let s1note = '';
-      if (ex.phase === 'intermediate_s1' && sessionType === 'heavy') {
-        s1note = day === 5
-          ? `<div style="font-size:11px;color:var(--accent);margin-top:4px;font-weight:700;">⚡ PR DAY — push the last set</div>`
-          : `<div style="font-size:11px;color:#555;margin-top:4px;">Volume session · Fri is PR day</div>`;
+      let displayWeight, setsText, rirText, nameExtra = '', s1note = '';
+      if (exId === 'paused_dips') {
+        displayWeight = roundToHalf(ex.currentWeight + (ex.pendingDipsIncrement || 0));
+        setsText  = '2 sets × 5 reps';
+        rirText   = 'Target RIR 3–4';
+        nameExtra = ' <span style="font-size:10px;color:#444;">deload</span>';
+      } else {
+        displayWeight = ex.currentWeight;
+        const rr = !ex.phase || ex.phase === 'novice' ? '5–8' : '3–6';
+        setsText = `3 sets × ${rr} reps`;
+        rirText  = 'Target RIR 1–2';
+        if (ex.phase === 'intermediate_s1' && sessionType === 'heavy') {
+          s1note = day === 5
+            ? `<div style="font-size:11px;color:var(--accent);margin-top:4px;font-weight:700;">⚡ PR DAY — push the last set</div>`
+            : `<div style="font-size:11px;color:#555;margin-top:4px;">Volume session · Fri is PR day</div>`;
+        }
       }
       html += `
         <div class="presc-card">
-          <div class="presc-ex-name">${ex.name}${derived ? ' <span style="font-size:10px;color:#444;">derived</span>' : ''}</div>
-          <div class="presc-weight">${ex.currentWeight}<span>kg</span></div>
-          <div class="presc-sets">3 sets × ${rr} reps</div>
-          <div class="presc-rir">Target RIR 1–2</div>
+          <div class="presc-ex-name">${ex.name}${nameExtra}</div>
+          <div class="presc-weight">${displayWeight}<span>kg</span></div>
+          <div class="presc-sets">${setsText}</div>
+          <div class="presc-rir">${rirText}</div>
           ${s1note}
         </div>`;
     }
@@ -1473,9 +1490,15 @@ function startSession(exercises, sessionType, day) {
   });
   SS.exSessionTypes = {};
   const data = loadData();
+
+
   exercises.forEach(id => {
     const phase = data.exercises[id].phase;
-    SS.exSessionTypes[id] = (phase === 'intermediate_s1' && sessionType === 'heavy' && day === 5) ? 'pr' : sessionType;
+    if (id === 'chinups') {
+      SS.exSessionTypes[id] = 'heavy'; // chin-ups is always an independent heavy exercise
+    } else {
+      SS.exSessionTypes[id] = (phase === 'intermediate_s1' && sessionType === 'heavy' && day === 5) ? 'pr' : sessionType;
+    }
   });
   showScreen('s-session');
   renderSessionScreen();
@@ -1493,9 +1516,15 @@ function renderSessionScreen() {
   document.getElementById('session-ex-name').textContent = ex.name;
 
   const counterEl = document.getElementById('session-set-counter');
-  counterEl.textContent = SS.view === 'exercise_complete' ? 'COMPLETE ✓' : `SET ${SS.currentSetNum} OF 3`;
+  const totalSets = exId === 'paused_dips' ? 2 : 3;
+  counterEl.textContent = SS.view === 'exercise_complete' ? 'COMPLETE ✓' : `SET ${SS.currentSetNum} OF ${totalSets}`;
 
-  document.getElementById('session-prescribed').innerHTML = `${ex.currentWeight}<span>kg</span>`;
+  // For paused_dips show the effective weight (currentWeight + pendingDipsIncrement) the
+  // athlete will actually train with — pendingDipsIncrement is applied on save, not on start
+  const effectiveWeight = (exId === 'paused_dips')
+    ? roundToHalf(ex.currentWeight + (ex.pendingDipsIncrement || 0))
+    : ex.currentWeight;
+  document.getElementById('session-prescribed').innerHTML = `${effectiveWeight}<span>kg</span>`;
 
   // Progress dots
   const bar = document.getElementById('session-progress-bar');
@@ -1523,7 +1552,7 @@ function renderSessionContent() {
 
 
   // 'logging'
-  content.innerHTML = buildSetInputHTML() + buildPrevSetsHTML(sets);
+  content.innerHTML = buildSetInputHTML(getTargetLine(exId)) + buildPrevSetsHTML(sets);
   const logBtn   = document.getElementById('btn-log-set');
   const repsInp  = document.getElementById('input-reps');
   const rirInp   = document.getElementById('input-rir');
@@ -1536,9 +1565,21 @@ function renderSessionContent() {
   logBtn.addEventListener('click', handleLogSet);
 }
 
-function buildSetInputHTML() {
+function getTargetLine(exId) {
+  const data = loadData();
+  const ex = data.exercises[exId];
+  if (exId === 'paused_dips') return '2 × 5 reps @ RIR 3–4';
+  const repRange = (!ex.phase || ex.phase === 'novice') ? '5–8' : '3–6';
+  return `3 × ${repRange} reps @ RIR 1–2`;
+}
+
+function buildSetInputHTML(targetLine) {
+  const targetHTML = targetLine
+    ? `<div style="font-size:11px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:12px;">TARGET: ${targetLine}</div>`
+    : '';
   return `
     <div class="card" style="margin-bottom:12px;">
+      ${targetHTML}
       <div class="set-input-grid">
         <div class="set-field-wrap">
           <div class="set-field-label">REPS</div>
@@ -1608,10 +1649,12 @@ function handleLogSet() {
 
   const count = SS.loggedSets[exId].length;
 
-  if (count >= 3) {
+  const maxSets = exId === 'paused_dips' ? 2 : 3;
+
+  if (count >= maxSets) {
     calcPrescription(exId);
     SS.view = 'exercise_complete';
-    SS.currentSetNum = 3;
+    SS.currentSetNum = maxSets;
   } else {
     SS.currentSetNum = count + 1;
   }
@@ -1621,6 +1664,24 @@ function handleLogSet() {
 function calcPrescription(exId) {
   const data = loadData();
   const ex   = data.exercises[exId];
+
+  if (exId === 'paused_dips') {
+    // Weight is always derived from accumulated dips increments — never from sets/reps/RIR.
+    // wasUnscheduled has zero effect on this path.
+    const pending    = ex.pendingDipsIncrement || 0;
+    const nextWeight = roundToHalf(ex.currentWeight + pending);
+    SS.prescriptions['paused_dips'] = {
+      nextWeight,
+      increment:               pending,
+      stallDetected:           false,
+      deloadSuggested:         false,
+      phaseTransitionSuggested: false,
+      newStallCount:           0,
+      message:                 pending > 0 ? `+${pending}kg from dips progression` : 'No dips increment since last session'
+    };
+    return;
+  }
+
   const exObj = {
     id: exId, phase: ex.phase, currentWeight: ex.currentWeight,
     stallCount: ex.stallCount || 0, followsExercise: ex.followsExercise || null,
@@ -1719,7 +1780,14 @@ function saveSessionData() {
       wasUnscheduled: SS.wasUnscheduled, notes
     });
 
-    if (!ex.followsExercise && presc) {
+    if (id === 'paused_dips') {
+      // Paused dips: weight is always set from pendingDipsIncrement, never from RIR/stall logic.
+      // wasUnscheduled has zero effect — identical behaviour for scheduled and unscheduled.
+      if (presc) {
+        ex.currentWeight        = presc.nextWeight;
+        ex.pendingDipsIncrement = 0; // reset after applying
+      }
+    } else if (!ex.followsExercise && presc) {
       ex.currentWeight = presc.nextWeight;
       ex.stallCount    = presc.newStallCount;
     }
@@ -1727,9 +1795,14 @@ function saveSessionData() {
     if (SS.prResults[id]?.isPR) ex.pr = SS.prResults[id].newPR;
   });
 
-  // Cascade paused_dips weight from dips — only if dips was actually logged
+  // After heavy sessions: accumulate dips increment into paused_dips.pendingDipsIncrement
+  // This is applied (and reset) at the START of the next Wednesday session
   if (SS.exercises.includes('dips')) {
-    data.exercises.paused_dips.currentWeight = roundToHalf(data.exercises.dips.currentWeight * 0.80);
+    const dipsPresc = SS.prescriptions['dips'];
+    if (dipsPresc && dipsPresc.increment > 0) {
+      data.exercises.paused_dips.pendingDipsIncrement =
+        (data.exercises.paused_dips.pendingDipsIncrement || 0) + dipsPresc.increment;
+    }
   }
 
   data.profile.exportReminderCount = (data.profile.exportReminderCount || 0) + 1;
@@ -1772,12 +1845,16 @@ function renderExSelectScreen() {
 }
 
 function startUnscheduledSession(exId) {
+  const data = loadData();
+  // Use the exercise's real sessionType so getNextPrescription fires the correct increment table.
+  // wasUnscheduled:true is a logging flag only and must never block weight updates.
+  const exSessionType = data.exercises[exId].sessionType || 'heavy';
   Object.assign(SS, {
     exercises: [exId], sessionType: 'unscheduled', wasUnscheduled: true,
     currentExIdx: 0, currentSetNum: 1, loggedSets: {}, prescriptions: {},
-    prResults: {}, notes: '', view: 'logging', timerInterval: null,
-    timerRemaining: 0, sessionDate: new Date().toISOString().split('T')[0],
-    exSessionTypes: { [exId]: 'unscheduled' }
+    prResults: {}, notes: '', view: 'logging',
+    sessionDate: new Date().toISOString().split('T')[0],
+    exSessionTypes: { [exId]: exSessionType }
   });
   showScreen('s-session');
   renderSessionScreen();
@@ -1991,7 +2068,7 @@ function renderProgressContent() {
       </div>
       <div class="stat-cell">
         <div class="stat-label">ADDED</div>
-        <div class="stat-value green">+${added.toFixed(2).replace(/\.?0+$/,'')}<span style="font-size:12px;font-weight:500;">kg</span></div>
+        <div class="stat-value ${added >= 0 ? 'green' : ''}">${ added >= 0 ? '+' : '' }${added.toFixed(2).replace(/\.?0+$/,'')}<span style="font-size:12px;font-weight:500;">kg</span></div>
       </div>
     </div>`;
 
@@ -2198,9 +2275,15 @@ document.getElementById('btn-lets-go').addEventListener('click', completeOnboard
 document.getElementById('session-back-btn').addEventListener('click', () => showModal('modal-abandon'));
 document.getElementById('modal-abandon-cancel').addEventListener('click', () => hideModal('modal-abandon'));
 document.getElementById('modal-abandon-confirm').addEventListener('click', () => {
-  hideModal('modal-abandon'); stopRestTimer();
+  hideModal('modal-abandon');
   SS.exercises = []; state.navHistory = [];
-  _activateScreen('s-today');
+  if (SS.wasUnscheduled) {
+    // Return to exercise selector so the user can pick a different movement
+    renderExSelectScreen();
+    _activateScreen('s-ex-select');
+  } else {
+    _activateScreen('s-today');
+  }
 });
 
 // — Complete —
@@ -2263,7 +2346,8 @@ function renderSettingsScreen() {
   const c = document.getElementById('settings-content');
 
   // ── Section 1: Training Phases
-  const phaseRows = ALL_EX_IDS.map(id => {
+  // paused_dips has no phase — exclude it from this section
+  const phaseRows = INDEPENDENT_EX.map(id => {
     const ex = data.exercises[id];
     const ph = ex.phase;
     const badge = `<span style="background:${PHASE_COLORS[ph]};color:#fff;font-size:9px;font-weight:800;letter-spacing:0.06em;padding:2px 8px;border-radius:10px;text-transform:uppercase;">${PHASE_LABELS[ph]}</span>`;
@@ -2415,10 +2499,8 @@ document.getElementById('mwa-save').addEventListener('click', () => {
   if (isNaN(newW) || newW <= 0) return;
   const data = loadData();
   data.exercises[_settingsWeightTarget.exId].currentWeight = roundToHalf(newW);
-  // cascade if dips adjusted
-  if (_settingsWeightTarget.exId === 'dips') {
-    data.exercises.paused_dips.currentWeight = roundToHalf(newW * 0.80);
-  }
+  // Note: paused_dips weight is controlled by the session accumulation system.
+  // Manual dips adjustments do not auto-cascade to paused_dips.
   saveData(data);
   hideModal('modal-weight-adjust');
   renderSettingsScreen();
@@ -2446,9 +2528,15 @@ document.getElementById('mdl-confirm').addEventListener('click', () => {
   ex.currentWeight  = newW;
   ex.stallCount     = 0;
   ex.lastDeloadDate = new Date().toISOString().split('T')[0];
+
   if (exId === 'dips') {
-    data.exercises.paused_dips.currentWeight = roundToHalf(newW * 0.80);
+    // paused_dips weight is derived from dips — deload must carry over.
+    // Also clear any pending increment so the deload resets the slate cleanly.
+    const pd = data.exercises.paused_dips;
+    pd.currentWeight        = roundToHalf(pd.currentWeight * 0.90);
+    pd.pendingDipsIncrement = 0;
   }
+
   saveData(data);
   hideModal('modal-deload');
   renderSettingsScreen();
