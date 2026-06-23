@@ -9,7 +9,7 @@
   <meta name="apple-mobile-web-app-title" content="Rogue" />
   <meta name="description" content="Weighted calisthenics progression tracker" />
   <title>Rogue</title>
-  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Iron%20Log%22%2C%22short_name%22%3A%22Iron%20Log%22%2C%22display%22%3A%22standalone%22%2C%22orientation%22%3A%22portrait%22%2C%22theme_color%22%3A%22%230a0a0a%22%2C%22background_color%22%3A%22%230a0a0a%22%2C%22start_url%22%3A%22.%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20192%20192'%3E%3Crect%20width%3D'192'%20height%3D'192'%20fill%3D'%230a0a0a'%2F%3E%3Ctext%20x%3D'96'%20y%3D'130'%20font-size%3D'100'%20text-anchor%3D'middle'%20fill%3D'%23ff6600'%3E%E2%9A%96%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Rogue%22%2C%22short_name%22%3A%22Rogue%22%2C%22display%22%3A%22standalone%22%2C%22orientation%22%3A%22portrait%22%2C%22theme_color%22%3A%22%230a0a0a%22%2C%22background_color%22%3A%22%230a0a0a%22%2C%22start_url%22%3A%22.%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20192%20192'%3E%3Crect%20width%3D'192'%20height%3D'192'%20fill%3D'%230a0a0a'%2F%3E%3Ctext%20x%3D'96'%20y%3D'130'%20font-size%3D'100'%20text-anchor%3D'middle'%20fill%3D'%23ff6600'%3E%E2%9A%96%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -198,9 +198,11 @@
       border-radius: var(--radius-pill); font-size: 11px; font-weight: 800;
       letter-spacing: 0.1em; text-transform: uppercase;
     }
-    .day-badge.heavy  { background: rgba(255,102,0,0.15); color: var(--accent); }
-    .day-badge.assist { background: rgba(0,102,204,0.15); color: #4499ff; }
-    .day-badge.rest   { background: #1c1c1c; color: var(--muted); }
+    .day-badge.heavy     { background: rgba(255,102,0,0.15); color: var(--accent); }
+    .day-badge.assist     { background: rgba(0,102,204,0.15); color: #4499ff; }
+    .day-badge.rest       { background: #1c1c1c; color: var(--muted); }
+    .day-badge.accessory  { background: rgba(160,80,255,0.15); color: #b57aff; }
+    .day-badge.open       { background: #1c1c1c; color: var(--muted); }
 
     /* ── Prescription Cards (today screen) ── */
     .presc-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 18px 20px; }
@@ -314,17 +316,6 @@
     .ex-select-name { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 4px; line-height: 1.3; }
     .ex-select-day  { font-size: 11px; color: var(--muted); }
 
-    /* ── PR Flash ── */
-    #pr-flash {
-      position: fixed; inset: 0; background: var(--accent); z-index: 9999;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      opacity: 0; pointer-events: none; transition: opacity 0.3s; text-align: center; padding: 40px;
-    }
-    #pr-flash.show { opacity: 1; pointer-events: all; }
-    .pr-flash-label { font-size: 72px; font-weight: 900; color: #fff; line-height: 1; letter-spacing: -0.02em; }
-    .pr-flash-ex { font-size: 16px; font-weight: 600; color: rgba(255,255,255,0.8); margin-top: 16px; letter-spacing: 0.06em; text-transform: uppercase; }
-    .pr-flash-detail { font-size: 32px; font-weight: 800; color: rgba(255,255,255,0.95); margin-top: 8px; }
-
     /* ── Modal ── */
     .modal-overlay {
       position: fixed; inset: 0; background: rgba(0,0,0,0.75); backdrop-filter: blur(4px);
@@ -418,6 +409,7 @@
     .session-type-badge.heavy  { background: rgba(255,102,0,0.15); color: var(--accent); }
     .session-type-badge.assistance { background: rgba(0,102,204,0.15); color: #4499ff; }
     .session-type-badge.unscheduled { background: #222; color: var(--muted); }
+    .session-type-badge.accessory   { background: rgba(0,160,100,0.15); color: #00bb77; }
 
     /* ════════════════════════════════════════════════════
        PROGRESS SCREEN
@@ -714,6 +706,7 @@
           <div style="display:flex;align-items:center;gap:10px;">
             <div class="wordmark" style="font-size:26px;">RO<span style="color:var(--accent);">GUE</span></div>
             <span id="today-rank-pill" style="display:none;padding:3px 9px;border-radius:10px;font-size:10px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:#fff;"></span>
+            <span id="today-streak-pill" style="display:none;font-size:11px;color:var(--accent);font-weight:700;"></span>
           </div>
           <div style="text-align:right;">
             <div style="font-size:11px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;" id="today-day">—</div>
@@ -790,6 +783,7 @@
           <button class="filter-tab" data-filter="heavy">Heavy</button>
           <button class="filter-tab" data-filter="assistance">Assistance</button>
           <button class="filter-tab" data-filter="unscheduled">Extra</button>
+          <button class="filter-tab" data-filter="accessory">Accessory</button>
         </div>
       </div>
       <div id="history-list"></div>
@@ -849,13 +843,6 @@
     </button>
   </div>
 </nav>
-
-<!-- PR Flash Overlay -->
-<div id="pr-flash">
-  <div class="pr-flash-label">NEW PR</div>
-  <div class="pr-flash-ex" id="pr-flash-ex">—</div>
-  <div class="pr-flash-detail" id="pr-flash-detail">—</div>
-</div>
 
 <!-- Modal: Abandon Session -->
 <div class="modal-overlay" id="modal-abandon">
@@ -963,10 +950,27 @@
   </div>
 </div>
 
+<!-- Modal: Import Confirm -->
+<div class="modal-overlay" id="modal-import-confirm">
+  <div class="modal-card">
+    <div class="modal-title">Import this backup?</div>
+    <div class="modal-body">This will replace all current training data. This action cannot be undone.</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="mic-cancel">Cancel</button>
+      <button class="btn btn-danger" id="mic-replace">Replace</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file input for import -->
+<input type="file" id="import-file-input" accept="application/json" style="display:none;" />
+
 <script>
 // ═══════════════════════════════════════════════════════════════
 // ENGINE — full implementation
 // ═══════════════════════════════════════════════════════════════
+
+const APP_VERSION = '1.1.0'; // Bump this on every deployment to invalidate the service worker cache
 
 function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
@@ -1091,11 +1095,20 @@ function getNextPrescription(exercise, lastSession) {
 }
 
 function checkForPR(exercise, session) {
-  const q = session.sets.filter(s => s.rir >= 0);
-  if (!q.length) return { isPR: false, newPR: null };
-  const best = q.reduce((b, s) => s.reps > b.reps ? s : b, q[0]);
-  if (exercise.pr && session.actualWeight <= exercise.pr.weight) return { isPR: false, newPR: null };
-  return { isPR: true, newPR: { weight: session.actualWeight, reps: best.reps, date: new Date().toISOString().split('T')[0] } };
+  const qualifying = session.sets.filter(s => s.rir >= 0);
+  if (!qualifying.length) return { isPR: false, newPR: null };
+  const bestSet = qualifying.reduce((b, s) => s.reps > b.reps ? s : b, qualifying[0]);
+
+  if (!exercise.pr) {
+    return { isPR: true, newPR: { weight: session.actualWeight, reps: bestSet.reps, date: new Date().toISOString().split('T')[0] } };
+  }
+
+  const isWeightPR = session.actualWeight > exercise.pr.weight;
+  const isRepPR    = session.actualWeight === exercise.pr.weight && bestSet.reps > exercise.pr.reps;
+
+  if (!isWeightPR && !isRepPR) return { isPR: false, newPR: null };
+
+  return { isPR: true, newPR: { weight: session.actualWeight, reps: bestSet.reps, date: new Date().toISOString().split('T')[0] } };
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1106,18 +1119,35 @@ const STORAGE_KEY = 'wct_data';
 
 function getDefaultData() {
   return {
-    profile: { onboardingComplete: false, setupDate: null, exportReminderCount: 0 },
+    profile: { onboardingComplete: false, setupDate: null, exportReminderCount: 0, accessoryStreak: 0, accessoryStreakPaused: false, lastAccessoryStreakCheckWeek: null },
     exercises: {
       dips:       { name: 'Weighted Dips',     sessionDays: [1,5], sessionType: 'heavy',     phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, lastDeloadDate: null, pr: null, sessions: [] },
       paused_dips:{ name: 'Paused Dips',       sessionDays: [3],   sessionType: 'assistance', followsExercise: 'dips', currentWeight: 0, startingWeight: 0, pendingDipsIncrement: 0, sessions: [] },
       pullups:    { name: 'Weighted Pull-ups',  sessionDays: [1,5], sessionType: 'heavy',     phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, lastDeloadDate: null, pr: null, sessions: [] },
-      chinups:    { name: 'Weighted Chin-ups',  sessionDays: [3],   sessionType: 'heavy',      phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, lastDeloadDate: null, pr: null, sessions: [] }
+      chinups:          { name: 'Weighted Chin-ups', sessionDays: [3], sessionType: 'heavy', phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, lastDeloadDate: null, pr: null, sessions: [] },
+      accessory_pullups: { name: 'Accessory Pull-ups', scheduledDays: [2, 4], sessions: [] },
+      accessory_chinups: { name: 'Accessory Chin-ups', scheduledDays: [6, 0], sessions: [] }
     }
   };
 }
 
 function saveData(data) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch(e) { console.error(e); } }
-function loadData() { try { const r = localStorage.getItem(STORAGE_KEY); return r ? JSON.parse(r) : null; } catch(e) { return null; } }
+function loadData() {
+  try {
+    const r = localStorage.getItem(STORAGE_KEY);
+    if (!r) return null;
+    const data = JSON.parse(r);
+    // Migrate: add accessory exercises for users onboarded before this feature
+    const def = getDefaultData();
+    if (!data.exercises.accessory_pullups) data.exercises.accessory_pullups = def.exercises.accessory_pullups;
+    if (!data.exercises.accessory_chinups) data.exercises.accessory_chinups = def.exercises.accessory_chinups;
+    // Migrate: add streak fields for users onboarded before this feature
+    if (data.profile.accessoryStreak            === undefined) data.profile.accessoryStreak            = 0;
+    if (data.profile.accessoryStreakPaused       === undefined) data.profile.accessoryStreakPaused       = false;
+    if (data.profile.lastAccessoryStreakCheckWeek === undefined) data.profile.lastAccessoryStreakCheckWeek = null;
+    return data;
+  } catch(e) { return null; }
+}
 
 // ═══════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -1337,6 +1367,18 @@ function renderTodayScreen() {
     } else if (rankEl) { rankEl.style.display = 'none'; }
   }
 
+  // Streak display in header
+  const streakEl = document.getElementById('today-streak-pill');
+  if (streakEl) {
+    const streak = todayData?.profile?.accessoryStreak || 0;
+    if (streak > 0) {
+      streakEl.textContent = `🔥 ${streak}`;
+      streakEl.style.display = 'inline';
+    } else {
+      streakEl.style.display = 'none';
+    }
+  }
+
   let sessionType;
   if (day === 1 || day === 5) sessionType = 'heavy';
   else if (day === 3)         sessionType = 'assistance';
@@ -1347,16 +1389,75 @@ function renderTodayScreen() {
   const cta     = document.getElementById('today-cta');
 
   if (sessionType === 'rest') {
+    const todayStr = new Date().toISOString().split('T')[0];
+    let accessoryExId = null;
+    let accessoryCardHTML = '';
+
+    if (day === 2 || day === 4) {
+      // Tuesday or Thursday — accessory pull-ups, no weekly lock, each day independent
+      accessoryExId = 'accessory_pullups';
+      const apEx = data.exercises.accessory_pullups || { sessions: [] };
+      const doneToday = apEx.sessions.some(s => s.date === todayStr);
+      if (doneToday) {
+        const done = apEx.sessions.find(s => s.date === todayStr);
+        const repsStr = (done.sets || []).map(r => r.reps).join(', ');
+        accessoryCardHTML = `
+          <div class="presc-card" style="margin-bottom:16px;border-left:3px solid var(--success);">
+            <div class="presc-ex-name">Accessory Pull-ups</div>
+            <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Done today (${repsStr})</div>
+          </div>`;
+      } else {
+        accessoryCardHTML = `
+          <div class="presc-card" style="margin-bottom:16px;">
+            <div class="presc-ex-name">Accessory Pull-ups</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Max effort — 3 sets, reps only</div>
+            <button class="btn btn-secondary" id="btn-start-accessory" style="margin-top:12px;">START</button>
+          </div>`;
+      }
+    } else if (day === 6 || day === 0) {
+      // Saturday or Sunday — accessory chin-ups, weekly lock (resets Monday 00:00)
+      accessoryExId = 'accessory_chinups';
+      const acEx = data.exercises.accessory_chinups || { sessions: [] };
+      const doneThisWeek = isAccessoryDoneThisWeek('accessory_chinups');
+      if (doneThisWeek) {
+        const now2 = new Date();
+        const dow = now2.getDay();
+        const diff = dow === 0 ? 6 : dow - 1;
+        const mon = new Date(now2); mon.setDate(now2.getDate() - diff); mon.setHours(0,0,0,0);
+        const thisWeekSess = acEx.sessions.find(s => new Date(s.date + 'T00:00:00') >= mon);
+        const { day: dayStr } = fmtDate(thisWeekSess ? thisWeekSess.date : todayStr);
+        const repsStr = ((thisWeekSess?.sets) || []).map(r => r.reps).join(', ');
+        accessoryCardHTML = `
+          <div class="presc-card" style="margin-bottom:16px;border-left:3px solid var(--success);">
+            <div class="presc-ex-name">Accessory Chin-ups</div>
+            <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Done this week (${dayStr}, ${repsStr})</div>
+          </div>`;
+      } else {
+        accessoryCardHTML = `
+          <div class="presc-card" style="margin-bottom:16px;">
+            <div class="presc-ex-name">Accessory Chin-ups</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Max effort — 3 sets, reps only</div>
+            <button class="btn btn-secondary" id="btn-start-accessory" style="margin-top:12px;">START</button>
+          </div>`;
+      }
+    }
+
+    const hasAccessory = accessoryExId !== null;
+    const unscheduledBtnClass = hasAccessory ? 'btn-secondary' : 'btn-primary';
+
+    let dayBadgeHTML = '';
+    if (hasAccessory) {
+      dayBadgeHTML = `<div class="day-badge accessory" style="margin-bottom:16px;">ACCESSORY DAY</div>`;
+    }
+
     content.innerHTML = `
-      <div style="text-align:center;padding:48px 20px;">
-        <div class="day-badge rest" style="margin:0 auto 20px;">REST DAY</div>
-        <div style="font-size:48px;margin-bottom:12px;">🛌</div>
-        <div style="font-size:20px;font-weight:700;color:#444;margin-bottom:6px;">Rest Day</div>
-        <div style="font-size:14px;color:#333;line-height:1.6;">Recovery is part of the program.</div>
-      </div>`;
-    cta.innerHTML = `<button class="btn btn-secondary" id="btn-unscheduled">Log Unscheduled Session</button>`;
+      <div style="margin-bottom:16px;">${dayBadgeHTML}</div>
+      ${accessoryCardHTML}`;
+    cta.innerHTML = `<button class="btn ${unscheduledBtnClass}" id="btn-unscheduled">Log Unscheduled Session</button>`;
     document.getElementById('btn-unscheduled').addEventListener('click', () => showScreen('s-ex-select'));
-    _appendDevReset(content);
+    if (accessoryExId) {
+      document.getElementById('btn-start-accessory')?.addEventListener('click', () => startAccessorySession(accessoryExId));
+    }
     return;
   }
 
@@ -1427,9 +1528,6 @@ function renderTodayScreen() {
     btn.addEventListener('click', () => btn.closest('.missed-banner').remove());
   });
 
-  // Dev reset (appended after main content)
-  _appendDevReset(content);
-
   // Build CTA: order toggle + start button
   function buildCTA() {
     const label1 = data.exercises[exercises[0]].name.split(' ').pop();
@@ -1457,7 +1555,6 @@ function renderTodayScreen() {
         content.innerHTML += mb;
       }
       content.querySelectorAll('.dismiss-btn').forEach(b => b.addEventListener('click', () => b.closest('.missed-banner').remove()));
-      _appendDevReset(content);
       buildCTA();
     });
     document.getElementById('btn-start-session').addEventListener('click', () => startSession(exercises, sessionType, day));
@@ -1483,7 +1580,7 @@ function getMissedBanners(exIds, data) {
 
 function startSession(exercises, sessionType, day) {
   Object.assign(SS, {
-    exercises, sessionType, wasUnscheduled: false, currentExIdx: 0, currentSetNum: 1,
+    exercises, sessionType, wasUnscheduled: false, isAccessory: false, currentExIdx: 0, currentSetNum: 1,
     loggedSets: {}, prescriptions: {}, prResults: {}, notes: '',
     view: 'logging',
     sessionDate: new Date().toISOString().split('T')[0]
@@ -1519,12 +1616,15 @@ function renderSessionScreen() {
   const totalSets = exId === 'paused_dips' ? 2 : 3;
   counterEl.textContent = SS.view === 'exercise_complete' ? 'COMPLETE ✓' : `SET ${SS.currentSetNum} OF ${totalSets}`;
 
-  // For paused_dips show the effective weight (currentWeight + pendingDipsIncrement) the
-  // athlete will actually train with — pendingDipsIncrement is applied on save, not on start
-  const effectiveWeight = (exId === 'paused_dips')
-    ? roundToHalf(ex.currentWeight + (ex.pendingDipsIncrement || 0))
-    : ex.currentWeight;
-  document.getElementById('session-prescribed').innerHTML = `${effectiveWeight}<span>kg</span>`;
+  if (SS.isAccessory) {
+    document.getElementById('session-prescribed').style.display = 'none';
+  } else {
+    document.getElementById('session-prescribed').style.display = '';
+    const effectiveWeight = (exId === 'paused_dips')
+      ? roundToHalf(ex.currentWeight + (ex.pendingDipsIncrement || 0))
+      : ex.currentWeight;
+    document.getElementById('session-prescribed').innerHTML = `${effectiveWeight}<span>kg</span>`;
+  }
 
   // Progress dots
   const bar = document.getElementById('session-progress-bar');
@@ -1544,12 +1644,31 @@ function renderSessionContent() {
 
   if (SS.view === 'exercise_complete') {
     content.innerHTML = buildExerciseCompleteHTML(exId, sets);
-    document.getElementById('btn-next-exercise')?.addEventListener('click', nextExercise);
+    document.getElementById('btn-next-exercise')?.addEventListener('click', () => {
+      if (SS.isAccessory) {
+        const weightEl = document.getElementById('accessory-weight-input');
+        SS.accessoryWeight = weightEl ? (parseFloat(weightEl.value) || 0) : 0;
+      }
+      nextExercise();
+    });
     const presc = SS.prescriptions[exId];
-    if (presc?.phaseTransitionSuggested) setTimeout(() => showModal('modal-phase'), 500);
+    if (presc?.phaseTransitionSuggested) {
+      SS.phaseTransitionExId = exId;
+      setTimeout(() => showModal('modal-phase'), 500);
+    }
     return;
   }
 
+  if (SS.isAccessory) {
+    content.innerHTML = buildAccessorySetInputHTML() + buildPrevSetsHTML(sets);
+    const repsInp = document.getElementById('input-reps');
+    const logBtn  = document.getElementById('btn-log-set');
+    repsInp.addEventListener('input', () => {
+      logBtn.disabled = !repsInp.value.trim() || parseInt(repsInp.value) < 1;
+    });
+    logBtn.addEventListener('click', handleLogSet);
+    return;
+  }
 
   // 'logging'
   content.innerHTML = buildSetInputHTML(getTargetLine(exId)) + buildPrevSetsHTML(sets);
@@ -1569,8 +1688,9 @@ function getTargetLine(exId) {
   const data = loadData();
   const ex = data.exercises[exId];
   if (exId === 'paused_dips') return '2 × 5 reps @ RIR 3–4';
-  const repRange = (!ex.phase || ex.phase === 'novice') ? '5–8' : '3–6';
-  return `3 × ${repRange} reps @ RIR 1–2`;
+  if (!ex) return null; // accessory exercises: no target line
+  const targetReps = (!ex.phase || ex.phase === 'novice') ? 8 : 6;
+  return `3 × ${targetReps} reps @ RIR 1–2`;
 }
 
 function buildSetInputHTML(targetLine) {
@@ -1598,11 +1718,25 @@ function buildSetInputHTML(targetLine) {
 function buildPrevSetsHTML(sets) {
   if (!sets?.length) return '';
   return `<div class="prev-sets">${sets.map((s,i) => `
-    <div class="prev-set-row"><span class="set-check">✓</span><span>Set ${i+1} — ${s.reps} reps — RIR ${s.rir}</span></div>`
+    <div class="prev-set-row"><span class="set-check">✓</span><span>Set ${i+1} — ${s.reps} reps${s.rir !== undefined ? ' — RIR ' + s.rir : ''}</span></div>`
   ).join('')}</div>`;
 }
 
 function buildExerciseCompleteHTML(exId, sets) {
+  if (SS.isAccessory) {
+    const setsStr = sets.map(s => s.reps + ' reps').join(', ');
+    return `
+      <div class="ex-complete-card">
+        <div class="ex-complete-header">✓ SETS COMPLETE</div>
+        <div class="ex-complete-sets">${sets.length} sets — ${setsStr}</div>
+        <div style="margin-top:16px;">
+          <div class="input-hint" style="margin-bottom:8px;">WEIGHT ADDED <span style="color:#444;">(optional)</span></div>
+          <input type="number" class="input-field" id="accessory-weight-input" inputmode="decimal" min="0" max="200" step="0.5" placeholder="0  (bodyweight if blank)" autocomplete="off" style="font-size:18px;"/>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-next-exercise">FINISH SESSION</button>`;
+  }
+
   const presc = SS.prescriptions[exId];
   const isLast = SS.currentExIdx >= SS.exercises.length - 1;
   const setsStr = sets.map(s => s.reps).join(', ');
@@ -1639,16 +1773,28 @@ function buildExerciseCompleteHTML(exId, sets) {
 // ═══════════════════════════════════════════════════════════════
 
 function handleLogSet() {
+  const exId = SS.exercises[SS.currentExIdx];
+
+  if (SS.isAccessory) {
+    const reps = parseInt(document.getElementById('input-reps').value);
+    if (isNaN(reps) || reps < 1) return;
+    if (!SS.loggedSets[exId]) SS.loggedSets[exId] = [];
+    SS.loggedSets[exId].push({ reps });
+    const count = SS.loggedSets[exId].length;
+    SS.currentSetNum = count >= 3 ? 3 : count + 1;
+    if (count >= 3) SS.view = 'exercise_complete';
+    renderSessionScreen();
+    return;
+  }
+
   const reps = parseInt(document.getElementById('input-reps').value);
   const rir  = parseInt(document.getElementById('input-rir').value);
   if (isNaN(reps) || reps < 1 || isNaN(rir)) return;
 
-  const exId = SS.exercises[SS.currentExIdx];
   if (!SS.loggedSets[exId]) SS.loggedSets[exId] = [];
   SS.loggedSets[exId].push({ reps, rir });
 
-  const count = SS.loggedSets[exId].length;
-
+  const count   = SS.loggedSets[exId].length;
   const maxSets = exId === 'paused_dips' ? 2 : 3;
 
   if (count >= maxSets) {
@@ -1705,25 +1851,6 @@ function nextExercise() {
 function finishSession() {
   showScreen('s-complete');
   renderSessionCompleteScreen();
-  const prExs = SS.exercises.filter(id => SS.prResults[id]?.isPR);
-  if (prExs.length) showPRFlashes(prExs, 0);
-}
-
-// ─── PR Flash ────────────────────────────────────────────────
-
-function showPRFlashes(exIds, idx) {
-  if (idx >= exIds.length) return;
-  const id = exIds[idx];
-  const data = loadData();
-  const pr   = SS.prResults[id].newPR;
-  document.getElementById('pr-flash-ex').textContent     = data.exercises[id].name;
-  document.getElementById('pr-flash-detail').textContent = `${pr.weight}kg × ${pr.reps} reps`;
-  const flash = document.getElementById('pr-flash');
-  flash.classList.add('show');
-  setTimeout(() => {
-    flash.classList.remove('show');
-    setTimeout(() => showPRFlashes(exIds, idx + 1), 300);
-  }, 2000);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1731,6 +1858,24 @@ function showPRFlashes(exIds, idx) {
 // ═══════════════════════════════════════════════════════════════
 
 function renderSessionCompleteScreen() {
+  if (SS.isAccessory) {
+    const data   = loadData();
+    const exId   = SS.exercises[0];
+    const ex     = data.exercises[exId];
+    const sets   = SS.loggedSets[exId] || [];
+    const sStr   = sets.map(s => s.reps).join(', ');
+    const weight = SS.accessoryWeight || 0;
+    document.getElementById('complete-meta').textContent = `${SS.sessionDate} · Accessory`;
+    document.getElementById('complete-exercises').innerHTML = `
+      <div class="session-complete-card">
+        <div class="session-complete-ex-name">${ex.name}</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:6px;">${weight > 0 ? '+' + weight + 'kg' : 'Bodyweight'} · ${sets.length} × ${sStr}</div>
+      </div>`;
+    const notesEl = document.getElementById('session-notes');
+    if (notesEl) notesEl.value = '';
+    return;
+  }
+
   const data = loadData();
   const labels = { heavy: 'Heavy Day', assistance: 'Assistance Day', unscheduled: 'Unscheduled' };
   document.getElementById('complete-meta').textContent = `${SS.sessionDate} · ${labels[SS.sessionType] || ''}`;
@@ -1765,6 +1910,8 @@ function renderSessionCompleteScreen() {
 }
 
 function saveSessionData() {
+  if (SS.isAccessory) { saveAccessorySession(); return; }
+
   const data  = loadData();
   const today = SS.sessionDate;
   const notes = document.getElementById('session-notes')?.value || '';
@@ -1818,12 +1965,30 @@ function saveSessionData() {
   _activateScreen('s-today');
 }
 
+function saveAccessorySession() {
+  const data   = loadData();
+  const exId   = SS.exercises[0];
+  const today  = SS.sessionDate;
+  const weight = SS.accessoryWeight || 0;
+  data.exercises[exId].sessions.push({
+    date: today,
+    sets: SS.loggedSets[exId] || [],
+    weight,
+    actualWeight:   weight,
+    sessionType:    'accessory',
+    wasUnscheduled: false
+  });
+  data.profile.accessoryStreak = (data.profile.accessoryStreak || 0) + 1;
+  saveData(data);
+  _activateScreen('s-today');
+}
+
 function exportJSON() {
   const data = loadData();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
-  a.href = url; a.download = `iron-log-backup-${new Date().toISOString().split('T')[0]}.json`;
+  a.href = url; a.download = `rogue-backup-${new Date().toISOString().split('T')[0]}.json`;
   a.click(); URL.revokeObjectURL(url);
 }
 
@@ -1850,7 +2015,7 @@ function startUnscheduledSession(exId) {
   // wasUnscheduled:true is a logging flag only and must never block weight updates.
   const exSessionType = data.exercises[exId].sessionType || 'heavy';
   Object.assign(SS, {
-    exercises: [exId], sessionType: 'unscheduled', wasUnscheduled: true,
+    exercises: [exId], sessionType: 'unscheduled', wasUnscheduled: true, isAccessory: false,
     currentExIdx: 0, currentSetNum: 1, loggedSets: {}, prescriptions: {},
     prResults: {}, notes: '', view: 'logging',
     sessionDate: new Date().toISOString().split('T')[0],
@@ -1858,6 +2023,52 @@ function startUnscheduledSession(exId) {
   });
   showScreen('s-session');
   renderSessionScreen();
+}
+
+// ─── Accessory Session Helpers ─────────────────────────────────
+
+// Week resets at Monday 00:00 local time.
+// Only call this for accessory_chinups (weekly-locked). Never for accessory_pullups.
+function isAccessoryDoneThisWeek(exId) {
+  const data = loadData();
+  const ex = data.exercises[exId];
+  if (!ex || !ex.sessions?.length) return false;
+  const now = new Date();
+  const monday = new Date(now);
+  const dayOfWeek = now.getDay(); // 0=Sun..6=Sat
+  const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  monday.setDate(now.getDate() - diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+  return ex.sessions.some(s => {
+    const sDate = new Date(s.date + 'T00:00:00');
+    return sDate >= monday;
+  });
+}
+
+function startAccessorySession(exId) {
+  Object.assign(SS, {
+    exercises: [exId], sessionType: 'accessory', wasUnscheduled: false, isAccessory: true,
+    currentExIdx: 0, currentSetNum: 1, loggedSets: {}, prescriptions: {}, prResults: {}, notes: '',
+    view: 'logging', accessoryWeight: 0,
+    sessionDate: new Date().toISOString().split('T')[0],
+    exSessionTypes: { [exId]: 'accessory' }
+  });
+  showScreen('s-session');
+  renderSessionScreen();
+}
+
+function buildAccessorySetInputHTML() {
+  return `
+    <div class="card" style="margin-bottom:12px;">
+      <div style="font-size:11px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:16px;">Max effort — as many reps as you can</div>
+      <div style="display:flex;justify-content:center;">
+        <div class="set-field-wrap">
+          <div class="set-field-label">REPS</div>
+          <input type="number" class="set-number-input" id="input-reps" inputmode="numeric" min="1" max="100" placeholder="0" autocomplete="off" style="width:120px;"/>
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-log-set" disabled style="margin-top:16px;">LOG SET</button>
+    </div>`;
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -1895,6 +2106,7 @@ function renderHistoryScreen() {
     ? sessions
     : sessions.filter(s => {
         if (historyFilter === 'unscheduled') return s.wasUnscheduled;
+        if (historyFilter === 'accessory')   return s.sessionType === 'accessory';
         return s.sessionType === historyFilter && !s.wasUnscheduled;
       });
 
@@ -1910,9 +2122,9 @@ function renderHistoryScreen() {
   list.innerHTML = '';
   filtered.forEach((sess, idx) => {
     const { day, date } = fmtDate(sess.date);
-    const typeCls  = sess.wasUnscheduled ? 'unscheduled' : sess.sessionType === 'heavy' ? 'heavy' : 'assistance';
-    const typeText = sess.wasUnscheduled ? 'Extra' : sess.sessionType === 'heavy' ? 'Heavy' : 'Assistance';
-    const exSummary = sess.exercises.map(e => `${e.name.split(' ').pop()} ${e.actualWeight}kg`).join(' • ');
+    const typeCls  = sess.wasUnscheduled ? 'unscheduled' : sess.sessionType === 'heavy' ? 'heavy' : sess.sessionType === 'accessory' ? 'accessory' : 'assistance';
+    const typeText = sess.wasUnscheduled ? 'Extra' : sess.sessionType === 'heavy' ? 'Heavy' : sess.sessionType === 'accessory' ? 'Accessory' : 'Assistance';
+    const exSummary = sess.exercises.map(e => `${e.name.split(' ').pop()} ${e.actualWeight > 0 ? e.actualWeight + 'kg' : 'BW'}`).join(' • ');
     const anyPR = sess.exercises.some(e => e.hadPR);
 
     const card = document.createElement('div');
@@ -1921,7 +2133,7 @@ function renderHistoryScreen() {
 
     // Expanded detail
     const exDetails = sess.exercises.map(e => {
-      const setRows = (e.sets || []).map((s, i) => `<div class="history-set-row">Set ${i+1}: ${s.reps} reps, RIR ${s.rir}</div>`).join('');
+      const setRows = (e.sets || []).map((s, i) => `<div class="history-set-row">Set ${i+1}: ${s.reps} reps${s.rir !== undefined ? ', RIR ' + s.rir : ''}</div>`).join('');
       return `
         <div class="history-ex-section">
           <div class="history-ex-name">${e.name}${e.hadPR ? ' <span class="pr-badge" style="font-size:9px;padding:2px 6px;">⚡ PR</span>' : ''}</div>
@@ -2292,8 +2504,19 @@ document.getElementById('btn-save-session').addEventListener('click', saveSessio
 // — Phase transition modal —
 document.getElementById('modal-phase-later').addEventListener('click', () => hideModal('modal-phase'));
 document.getElementById('modal-phase-update').addEventListener('click', () => {
+  if (!SS.phaseTransitionExId) { hideModal('modal-phase'); return; }
+  const data = loadData();
+  const ex   = data.exercises[SS.phaseTransitionExId];
+  const PHASE_ORDER = ['novice', 'advanced_novice', 'intermediate_s1', 'intermediate_s2'];
+  const idx  = PHASE_ORDER.indexOf(ex.phase);
+  if (idx >= 0 && idx < PHASE_ORDER.length - 1) {
+    ex.phase      = PHASE_ORDER[idx + 1];
+    ex.stallCount = 0;
+    saveData(data);
+    showToast(`Advanced to ${PHASE_LABELS[ex.phase]}`);
+  }
   hideModal('modal-phase');
-  // Settings / phase screen — future build
+  SS.phaseTransitionExId = null;
 });
 
 // — Export modal —
@@ -2399,6 +2622,13 @@ function renderSettingsScreen() {
     </div>
     <div class="settings-row">
       <div class="settings-row-label">
+        <div class="settings-row-name">Import Training Data</div>
+        <div class="settings-row-sub">Restore from a previously exported JSON file</div>
+      </div>
+      <button class="settings-btn" data-action="import">Import</button>
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-label">
         <div class="settings-row-name" style="color:var(--danger);">Reset All Data</div>
         <div class="settings-row-sub">Permanently deletes everything</div>
       </div>
@@ -2423,12 +2653,30 @@ function renderSettingsScreen() {
       <div class="settings-card">${dataRows}</div>
     </div>
     <div class="settings-section">
+      <div class="settings-section-title">Accessory Streak</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <div class="settings-row-name">Current Streak</div>
+            <div class="settings-row-sub">${data.profile.accessoryStreak || 0} session${(data.profile.accessoryStreak || 0) === 1 ? '' : 's'}${data.profile.accessoryStreakPaused ? ' — Paused' : ''}</div>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <div class="settings-row-name">Pause Accessory Streak</div>
+            <div class="settings-row-sub">Freeze your streak while traveling or unable to train. It will not reset while paused.</div>
+          </div>
+          <button class="settings-btn" id="btn-streak-pause-toggle">${data.profile.accessoryStreakPaused ? 'Resume' : 'Pause'}</button>
+        </div>
+      </div>
+    </div>
+    <div class="settings-section">
       <div class="settings-section-title">About</div>
       <div class="settings-card">
         <div class="settings-row">
           <div class="settings-row-label">
             <div class="settings-row-name">ROGUE</div>
-            <div class="settings-row-sub">Version 1.0.0</div>
+            <div class="settings-row-sub">Version ${APP_VERSION}</div>
           </div>
         </div>
       </div>
@@ -2443,8 +2691,27 @@ function renderSettingsScreen() {
       if (action === 'weight') openWeightModal(exId);
       if (action === 'deload') openDeloadModal(exId);
       if (action === 'export') doSettingsExport();
+      if (action === 'import') doSettingsImport();
       if (action === 'reset')  showModal('modal-reset1');
     });
+  });
+
+  // Streak pause toggle
+  document.getElementById('btn-streak-pause-toggle')?.addEventListener('click', () => {
+    const d = loadData();
+    const wasPaused = d.profile.accessoryStreakPaused;
+    d.profile.accessoryStreakPaused = !wasPaused;
+    if (wasPaused) {
+      // Resuming: reset the tracking checkpoint to now so paused weeks are not checked
+      const now2 = new Date();
+      const dow2 = now2.getDay();
+      const diff2 = dow2 === 0 ? 6 : dow2 - 1;
+      const mon2 = new Date(now2); mon2.setDate(now2.getDate() - diff2); mon2.setHours(0,0,0,0);
+      d.profile.lastAccessoryStreakCheckWeek = mon2.toISOString().split('T')[0];
+    }
+    saveData(d);
+    renderSettingsScreen();
+    showToast(d.profile.accessoryStreakPaused ? 'Streak paused' : 'Streak resumed');
   });
 }
 
@@ -2550,7 +2817,7 @@ function doSettingsExport() {
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
-  a.download = `ironlog_export_${new Date().toISOString().split('T')[0]}.json`;
+  a.download = `rogue_export_${new Date().toISOString().split('T')[0]}.json`;
   a.click();
   URL.revokeObjectURL(url);
   data.profile.exportReminderCount = 0;
@@ -2558,6 +2825,50 @@ function doSettingsExport() {
   renderSettingsScreen();
   showToast('Data exported');
 }
+
+// ── Import from settings
+let _pendingImportData = null;
+
+function doSettingsImport() {
+  const fileInput = document.getElementById('import-file-input');
+  fileInput.value = ''; // reset so same file can be re-selected
+  fileInput.onchange = () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      let parsed;
+      try {
+        parsed = JSON.parse(e.target.result);
+      } catch (_) {
+        showToast('Invalid backup file');
+        return;
+      }
+      if (!parsed || typeof parsed !== 'object' || !parsed.profile || !parsed.exercises) {
+        showToast('Invalid backup file');
+        return;
+      }
+      _pendingImportData = parsed;
+      showModal('modal-import-confirm');
+    };
+    reader.onerror = () => showToast('Could not read file');
+    reader.readAsText(file);
+  };
+  fileInput.click();
+}
+
+// ── Import confirm modal
+document.getElementById('mic-cancel').addEventListener('click', () => {
+  _pendingImportData = null;
+  hideModal('modal-import-confirm');
+});
+document.getElementById('mic-replace').addEventListener('click', () => {
+  if (!_pendingImportData) return;
+  saveData(_pendingImportData);
+  _pendingImportData = null;
+  hideModal('modal-import-confirm');
+  location.reload();
+});
 
 // ── Reset (double confirm)
 document.getElementById('mr1-cancel').addEventListener('click',  () => hideModal('modal-reset1'));
@@ -2575,7 +2886,7 @@ document.getElementById('mr2-confirm').addEventListener('click', () => {
 // Service Worker (blob URL for single-file PWA)
 if ('serviceWorker' in navigator) {
   const swCode = `
-    const CACHE = 'ironlog-v1';
+    const CACHE = 'rogue-v${APP_VERSION}';
     self.addEventListener('install', e => {
       e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./'])));
       self.skipWaiting();
@@ -2603,9 +2914,39 @@ window.addEventListener('online',  updateOfflineBar);
 window.addEventListener('offline', updateOfflineBar);
 updateOfflineBar();
 
+function checkAccessoryStreakReset() {
+  const data = loadData();
+  if (!data || data.profile.accessoryStreakPaused) return;
+
+  const now = new Date();
+  const dayOfWeek = now.getDay();
+  const diffToMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - diffToMonday);
+  monday.setHours(0, 0, 0, 0);
+  const thisMonday = monday.toISOString().split('T')[0];
+
+  const lastChecked = data.profile.lastAccessoryStreakCheckWeek;
+
+  if (lastChecked && lastChecked !== thisMonday) {
+    const allSessions = [
+      ...(data.exercises.accessory_pullups?.sessions || []),
+      ...(data.exercises.accessory_chinups?.sessions || [])
+    ];
+    const hadSessionLastWeek = allSessions.some(s => s.date >= lastChecked && s.date < thisMonday);
+    if (!hadSessionLastWeek) {
+      data.profile.accessoryStreak = 0;
+    }
+  }
+
+  data.profile.lastAccessoryStreakCheckWeek = thisMonday;
+  saveData(data);
+}
+
 (function init() {
   const data = loadData();
   if (data?.profile?.onboardingComplete) {
+    checkAccessoryStreakReset();
     document.getElementById('s-today').classList.add('active');
     document.getElementById('bottom-nav').classList.add('visible');
     currentScreen = 's-today';
