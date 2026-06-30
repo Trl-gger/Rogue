@@ -1436,7 +1436,7 @@ function renderTodayScreen() {
         accessoryCardHTML = `
           <div class="presc-card" style="margin-bottom:16px;">
             <div class="presc-ex-name">Accessory Chin-ups</div>
-            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Max effort — 3 sets, reps only</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Max effort — 5 sets, reps only</div>
             <button class="btn btn-secondary" id="btn-start-accessory" style="margin-top:12px;">START</button>
           </div>`;
       }
@@ -1781,8 +1781,9 @@ function handleLogSet() {
     if (!SS.loggedSets[exId]) SS.loggedSets[exId] = [];
     SS.loggedSets[exId].push({ reps });
     const count = SS.loggedSets[exId].length;
-    SS.currentSetNum = count >= 3 ? 3 : count + 1;
-    if (count >= 3) SS.view = 'exercise_complete';
+    const maxSets = exId === 'accessory_chinups' ? 5 : 3;
+    SS.currentSetNum = count >= maxSets ? maxSets : count + 1;
+    if (count >= maxSets) SS.view = 'exercise_complete';
     renderSessionScreen();
     return;
   }
@@ -2084,6 +2085,7 @@ function buildSessionHistory() {
     (ex.sessions || []).forEach(sess => {
       const key = `${sess.date}__${sess.sessionType}`;
       if (!map[key]) map[key] = { date: sess.date, sessionType: sess.sessionType, wasUnscheduled: sess.wasUnscheduled || false, notes: sess.notes || '', exercises: [] };
+      else if (!map[key].notes && sess.notes) map[key].notes = sess.notes;
       map[key].exercises.push({
         id: exId, name: ex.name, actualWeight: sess.actualWeight, sets: sess.sets,
         hadPR: !!(ex.pr && ex.pr.date === sess.date)
@@ -2126,9 +2128,10 @@ function renderHistoryScreen() {
     const typeText = sess.wasUnscheduled ? 'Extra' : sess.sessionType === 'heavy' ? 'Heavy' : sess.sessionType === 'accessory' ? 'Accessory' : 'Assistance';
     const exSummary = sess.exercises.map(e => `${e.name.split(' ').pop()} ${e.actualWeight > 0 ? e.actualWeight + 'kg' : 'BW'}`).join(' • ');
     const anyPR = sess.exercises.some(e => e.hadPR);
+    const isToday = sess.date === new Date().toISOString().split('T')[0];
 
     const card = document.createElement('div');
-    card.className = 'history-card';
+    card.className = isToday ? 'history-card open' : 'history-card';
     card.style.cssText = 'margin-bottom:8px;';
 
     // Expanded detail
