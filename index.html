@@ -2339,7 +2339,18 @@
     // CONSTANTS
     // ═══════════════════════════════════════════════════════════════
 
-    const PHASE_LABELS = { novice: 'Novice', advanced_novice: 'Adv. Novice', intermediate_s1: 'Inter. S1', intermediate_s2: 'Inter. S2' };
+    function getPhaseDisplayName(phase) {
+      switch (phase) {
+        case 'novice':          return 'Novice';
+        case 'advanced_novice': return 'Advanced Novice';
+        case 'intermediate_s1': return 'Intermediate';
+        case 'intermediate_s2': return 'Advanced Intermediate';
+        case 'advanced':        return 'Advanced';
+        default:                return phase;
+      }
+    }
+
+    const PHASE_LABELS = { novice: 'Novice', advanced_novice: 'Advanced Novice', intermediate_s1: 'Intermediate', intermediate_s2: 'Advanced Intermediate' };
     const PHASE_COLORS = { novice: '#444', advanced_novice: '#0066cc', intermediate_s1: '#ff6600', intermediate_s2: '#cc0000' };
     const INDEPENDENT_EX = ['dips', 'pullups', 'chinups'];
     const ALL_EX_IDS = ['dips', 'pullups', 'paused_dips', 'chinups'];
@@ -4066,9 +4077,8 @@
       document.getElementById('mpc-title').textContent = `Update Phase — ${ex.name}`;
       const opts = document.getElementById('mpc-options');
       const PHASES = ['novice', 'advanced_novice', 'intermediate_s1', 'intermediate_s2'];
-      const LABELS = { novice: 'NOVICE', advanced_novice: 'ADVANCED NOVICE', intermediate_s1: 'INTERMEDIATE S1', intermediate_s2: 'INTERMEDIATE S2' };
       opts.innerHTML = PHASES.map(p =>
-        `<button class="phase-opt-btn${p === ex.phase ? ' selected' : ''}" data-phase="${p}">${LABELS[p]}</button>`
+        `<button class="phase-opt-btn${p === ex.phase ? ' selected' : ''}" data-phase="${p}">${getPhaseDisplayName(p).toUpperCase()}</button>`
       ).join('');
       opts.querySelectorAll('.phase-opt-btn').forEach(b => {
         b.addEventListener('click', () => {
