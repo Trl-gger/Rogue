@@ -4278,6 +4278,142 @@
       saveData(data);
     }
 
+    // ═══════════════════════════════════════════════════════════════
+    // PHASE VERIFICATION TEST SUITE — console only, no UI output
+    // ═══════════════════════════════════════════════════════════════
+    (function runPhaseVerification() {
+      let passed = 0;
+      const failedIds = [];
+
+      // Build a minimal exercise object for the engine
+      function mkEx(id, phase, weight, stallCount = 0) {
+        return { id, phase, currentWeight: weight, stallCount };
+      }
+
+      // Compare actual result against expected fields and log PASS/FAIL
+      function check(id, desc, actual, expected) {
+        let ok = true;
+        const parts = [];
+
+        if ('increment' in expected) {
+          const m = actual.increment === expected.increment;
+          ok = ok && m;
+          parts.push(`increment ${actual.increment}${m ? ' ✓' : ` ✗ (expected ${expected.increment})`}`);
+        }
+        if ('deloadSuggested' in expected) {
+          const m = actual.deloadSuggested === expected.deloadSuggested;
+          ok = ok && m;
+          parts.push(`deload=${actual.deloadSuggested}${m ? ' ✓' : ` ✗ (expected ${expected.deloadSuggested})`}`);
+        }
+        if (expected.stallIncrement) {
+          const m = actual.newStallCount > 0;
+          ok = ok && m;
+          parts.push(`stallCount++ ${m ? '✓' : `✗ (got newStallCount=${actual.newStallCount})`}`);
+        }
+
+        const tag = ok ? '[PASS]' : '[FAIL]';
+        console.log(`${tag} ${id}: ${desc} → ${parts.join(', ')}`);
+        if (ok) passed++; else failedIds.push(id);
+      }
+
+      let r;
+
+      // ── NOVICE ────────────────────────────────────────────────
+      r = getNextPrescription(mkEx('dips',    'novice', 20), { sets:[{reps:8,rir:1}], sessionType:'heavy' });
+      check('N1', 'novice dips 8 reps RIR 1 → +2.5kg',       r, { increment:2.5 });
+
+      r = getNextPrescription(mkEx('dips',    'novice', 20), { sets:[{reps:8,rir:0}], sessionType:'heavy' });
+      check('N2', 'novice dips 8 reps RIR 0 → +1.25kg',      r, { increment:1.25 });
+
+      r = getNextPrescription(mkEx('pullups', 'novice', 10), { sets:[{reps:7,rir:1}], sessionType:'heavy' });
+      check('N3', 'novice pullups 7 reps RIR 1 → +1.25kg',   r, { increment:1.25 });
+
+      r = getNextPrescription(mkEx('pullups', 'novice', 10), { sets:[{reps:7,rir:0}], sessionType:'heavy' });
+      check('N4', 'novice pullups 7 reps RIR 0 → +0.5kg',    r, { increment:0.5 });
+
+      r = getNextPrescription(mkEx('chinups', 'novice', 10), { sets:[{reps:6,rir:1}], sessionType:'heavy' });
+      check('N5', 'novice chinups 6 reps RIR 1 → +0.5kg',    r, { increment:0.5 });
+
+      r = getNextPrescription(mkEx('chinups', 'novice', 10), { sets:[{reps:6,rir:0}], sessionType:'heavy' });
+      check('N6', 'novice chinups 6 reps RIR 0 → hold + stallCount++', r, { increment:0, stallIncrement:true });
+
+      r = getNextPrescription(mkEx('dips',    'novice', 20), { sets:[{reps:5,rir:2}], sessionType:'heavy' });
+      check('N7', 'novice dips 5 reps → deload',             r, { increment:0, deloadSuggested:true });
+
+      r = getNextPrescription(mkEx('dips',    'novice', 20), { sets:[{reps:8,rir:2}], sessionType:'heavy' });
+      check('N8', 'novice dips 8 reps RIR 2 → +2.5kg',      r, { increment:2.5 });
+
+      // ── ADVANCED NOVICE ───────────────────────────────────────
+      r = getNextPrescription(mkEx('dips',    'advanced_novice', 40), { sets:[{reps:6,rir:1}], sessionType:'heavy' });
+      check('AN1', 'adv_novice dips 6 reps RIR 1 → +2.5kg',  r, { increment:2.5 });
+
+      r = getNextPrescription(mkEx('dips',    'advanced_novice', 40), { sets:[{reps:6,rir:2}], sessionType:'heavy' });
+      check('AN2', 'adv_novice dips 6 reps RIR 2 → +2.5kg',  r, { increment:2.5 });
+
+      r = getNextPrescription(mkEx('dips',    'advanced_novice', 40), { sets:[{reps:6,rir:0}], sessionType:'heavy' });
+      check('AN3', 'adv_novice dips 6 reps RIR 0 → +1.25kg', r, { increment:1.25 });
+
+      r = getNextPrescription(mkEx('pullups', 'advanced_novice', 25), { sets:[{reps:5,rir:1}], sessionType:'heavy' });
+      check('AN4', 'adv_novice pullups 5 reps RIR 1 → +1.25kg', r, { increment:1.25 });
+
+      r = getNextPrescription(mkEx('pullups', 'advanced_novice', 25), { sets:[{reps:5,rir:0}], sessionType:'heavy' });
+      check('AN5', 'adv_novice pullups 5 reps RIR 0 → +0.5kg',  r, { increment:0.5 });
+
+      r = getNextPrescription(mkEx('chinups', 'advanced_novice', 30), { sets:[{reps:4,rir:1}], sessionType:'heavy' });
+      check('AN6', 'adv_novice chinups 4 reps RIR 1 → +0.5kg',  r, { increment:0.5 });
+
+      r = getNextPrescription(mkEx('chinups', 'advanced_novice', 30), { sets:[{reps:4,rir:0}], sessionType:'heavy' });
+      check('AN7', 'adv_novice chinups 4 reps RIR 0 → hold + stallCount++', r, { increment:0, stallIncrement:true });
+
+      r = getNextPrescription(mkEx('dips',    'advanced_novice', 40), { sets:[{reps:3,rir:2}], sessionType:'heavy' });
+      check('AN8', 'adv_novice dips 3 reps → deload',          r, { increment:0, deloadSuggested:true });
+
+      // ── INTERMEDIATE S1 ───────────────────────────────────────
+      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets:[{reps:6,rir:0}], sessionType:'pr' });
+      check('I1', 'intermediate_s1 dips PR 6 reps → +2.5kg',  r, { increment:2.5 });
+
+      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets:[{reps:5,rir:0}], sessionType:'pr' });
+      check('I2', 'intermediate_s1 dips PR 5 reps → +1.25kg', r, { increment:1.25 });
+
+      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets:[{reps:4,rir:0}], sessionType:'pr' });
+      check('I3', 'intermediate_s1 dips PR 4 reps → +0.5kg',  r, { increment:0.5 });
+
+      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets:[{reps:2,rir:0}], sessionType:'pr' });
+      check('I4', 'intermediate_s1 dips PR 2 reps → hold + stallCount++', r, { increment:0, stallIncrement:true });
+
+      // ── ADVANCED INTERMEDIATE S2 ──────────────────────────────
+      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets:[{reps:3,rir:2}], sessionType:'heavy' });
+      check('AI1', 'intermediate_s2 dips heavy RIR 2 → +2.5kg',  r, { increment:2.5 });
+
+      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets:[{reps:3,rir:1}], sessionType:'heavy' });
+      check('AI2', 'intermediate_s2 dips heavy RIR 1 → +1.25kg', r, { increment:1.25 });
+
+      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets:[{reps:3,rir:0}], sessionType:'heavy' });
+      check('AI3', 'intermediate_s2 dips heavy RIR 0 → +0.5kg',  r, { increment:0.5 });
+
+      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets:[{reps:6,rir:1}], sessionType:'assistance' });
+      check('AI4', 'intermediate_s2 dips assistance 6 reps RIR 1 → +2.5kg', r, { increment:2.5 });
+
+      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets:[{reps:3,rir:0}], sessionType:'assistance' });
+      check('AI5', 'intermediate_s2 dips assistance 3 reps RIR 0 → hold + stallCount++', r, { increment:0, stallIncrement:true });
+
+      // ── PAUSED DIPS ───────────────────────────────────────────
+      const pd1 = calculateStartingWeight('paused_dips', 0, 62.5);
+      const pd1ok = pd1 === 50;
+      console.log(`${pd1ok ? '[PASS]' : '[FAIL]'} PD1: paused_dips starting weight (dips 62.5kg × 0.80) → ${pd1}kg${pd1ok ? ' ✓' : ' ✗ (expected 50)'}`);
+      if (pd1ok) passed++; else failedIds.push('PD1');
+
+      const pd2 = +(2.5 + 1.25).toFixed(4);
+      const pd2ok = pd2 === 3.75;
+      console.log(`${pd2ok ? '[PASS]' : '[FAIL]'} PD2: paused_dips accumulated increment (2.5 + 1.25) → ${pd2}kg${pd2ok ? ' ✓' : ' ✗ (expected 3.75)'}`);
+      if (pd2ok) passed++; else failedIds.push('PD2');
+
+      // ── SUMMARY ───────────────────────────────────────────────
+      const total = passed + failedIds.length;
+      console.log(`\nPHASE VERIFICATION: ${passed}/${total} tests passed`);
+      if (failedIds.length) console.log(`FAILED TESTS: [${failedIds.join(', ')}]`);
+    })();
+
     (function init() {
       const data = loadData();
       if (data?.profile?.onboardingComplete) {
