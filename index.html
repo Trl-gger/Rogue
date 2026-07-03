@@ -9,7 +9,9 @@
   <meta name="apple-mobile-web-app-title" content="Rogue" />
   <meta name="description" content="Weighted calisthenics progression tracker" />
   <title>Rogue</title>
-  <link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Rogue%22%2C%22short_name%22%3A%22Rogue%22%2C%22display%22%3A%22standalone%22%2C%22orientation%22%3A%22portrait%22%2C%22theme_color%22%3A%22%230a0a0a%22%2C%22background_color%22%3A%22%230a0a0a%22%2C%22start_url%22%3A%22.%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage%2Fsvg%2Bxml%2C%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20viewBox%3D'0%200%20192%20192'%3E%3Crect%20width%3D'192'%20height%3D'192'%20fill%3D'%230a0a0a'%2F%3E%3Ctext%20x%3D'96'%20y%3D'130'%20font-size%3D'100'%20text-anchor%3D'middle'%20fill%3D'%23ff6600'%3E%E2%9A%96%3C%2Ftext%3E%3C%2Fsvg%3E%22%2C%22sizes%22%3A%22192x192%22%2C%22type%22%3A%22image%2Fsvg%2Bxml%22%7D%5D%7D">
+  <link rel="manifest" href="assets/manifest.json">
+  <link rel="apple-touch-icon" href="assets/rogue_logo.png">
+  <link rel="icon" type="image/png" href="assets/rogue_logo.png">
 
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -246,6 +248,14 @@
     }
     .set-number-input:focus { border-bottom-color: var(--accent); }
     .set-number-input::placeholder { color: #333; font-size: 24px; font-weight: 400; }
+    .stepper-btn {
+      flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+      background: var(--surface-high); border: 1px solid var(--border);
+      color: var(--text); font-size: 20px; font-weight: 700; line-height: 1;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      transition: background 0.15s;
+    }
+    .stepper-btn:active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
     /* ── Previous Sets ── */
     .prev-sets { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
@@ -1511,22 +1521,89 @@ function renderTodayScreen() {
     return html;
   }
 
-  let html = buildCards();
+  const todayStr = new Date().toISOString().split('T')[0];
+  const alreadyDoneToday = exercises.some(id =>
+    (data.exercises[id].sessions || []).some(s => s.date === todayStr && !s.wasUnscheduled)
+  );
 
-  // Missed session banners
-  const missed = getMissedBanners(exercises, data);
-  if (missed.length) {
-    html += `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">`;
-    missed.forEach(m => {
-      html += `<div class="missed-banner"><div class="missed-text">Last <strong>${m.name}</strong> session was ${m.days} days ago</div><button class="dismiss-btn">×</button></div>`;
-    });
-    html += `</div>`;
+  let html = alreadyDoneToday ? '' : buildCards();
+
+  // Missed session banners (only show when not already done)
+  if (!alreadyDoneToday) {
+    const missed = getMissedBanners(exercises, data);
+    if (missed.length) {
+      html += `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">`;
+      missed.forEach(m => {
+        html += `<div class="missed-banner"><div class="missed-text">Last <strong>${m.name}</strong> session was ${m.days} days ago</div><button class="dismiss-btn">×</button></div>`;
+      });
+      html += `</div>`;
+    }
   }
+
+  // Done-today banner + next session preview
+  if (alreadyDoneToday) {
+    // Determine next scheduled session
+    let nextSessionType, nextDayName;
+    if (sessionType === 'heavy') {
+      if (day === 1) { nextSessionType = 'assistance'; nextDayName = 'Wednesday'; }
+      else           { nextSessionType = 'heavy';      nextDayName = 'Monday'; }
+    } else {
+                       nextSessionType = 'heavy';      nextDayName = 'Friday';
+    }
+    const nextExIds  = nextSessionType === 'heavy' ? ['dips','pullups'] : ['paused_dips','chinups'];
+    const nextBadge  = nextSessionType === 'heavy' ? 'HEAVY DAY' : 'ASSISTANCE DAY';
+    const nextBadgeCls = nextSessionType === 'heavy' ? 'heavy' : 'assist';
+
+    let nextCardsHTML = '';
+    for (const exId of nextExIds) {
+      const ex = data.exercises[exId];
+      let displayWeight, setsText, rirText;
+      if (exId === 'paused_dips') {
+        displayWeight = roundToHalf(ex.currentWeight + (ex.pendingDipsIncrement || 0));
+        setsText = '2 sets × 5 reps'; rirText = 'Target RIR 3–4';
+      } else {
+        displayWeight = ex.currentWeight;
+        const rr = !ex.phase || ex.phase === 'novice' ? '5–8' : '3–6';
+        setsText = `3 sets × ${rr} reps`; rirText = 'Target RIR 1–2';
+      }
+      nextCardsHTML += `
+        <div class="presc-card" style="border:1px solid rgba(232,160,32,0.35);border-left:3px solid #e8a020;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+            <div class="presc-ex-name" style="margin-bottom:0;">${ex.name}</div>
+            <span style="font-size:9px;font-weight:800;letter-spacing:0.1em;color:#e8a020;background:rgba(232,160,32,0.12);padding:3px 8px;border-radius:20px;">NEXT</span>
+          </div>
+          <div class="presc-weight">${displayWeight}<span>kg</span></div>
+          <div class="presc-sets">${setsText}</div>
+          <div class="presc-rir">${rirText}</div>
+        </div>`;
+    }
+
+    html += `
+      <div style="margin-bottom:16px;">
+        <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;">NEXT SESSION — ${nextDayName.toUpperCase()}</div>
+        <div class="day-badge ${nextBadgeCls}" style="margin-bottom:12px;">${nextBadge}</div>
+        <div style="display:flex;flex-direction:column;gap:10px;">${nextCardsHTML}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;background:rgba(0,200,100,0.08);border:1px solid rgba(0,200,100,0.25);border-radius:var(--radius-card);padding:14px 16px;">
+        <span style="font-size:20px;">✓</span>
+        <div>
+          <div style="font-size:13px;font-weight:700;color:var(--success);">Session logged today</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">Go to History to review your sets and notes.</div>
+        </div>
+      </div>`;
+  }
+
 
   content.innerHTML = html;
   content.querySelectorAll('.dismiss-btn').forEach(btn => {
     btn.addEventListener('click', () => btn.closest('.missed-banner').remove());
   });
+
+  if (alreadyDoneToday) {
+    cta.innerHTML = `<button class="btn btn-secondary" id="btn-unscheduled-extra">Log Unscheduled Session</button>`;
+    document.getElementById('btn-unscheduled-extra').addEventListener('click', () => showScreen('s-ex-select'));
+    return;
+  }
 
   // Build CTA: order toggle + start button
   function buildCTA() {
@@ -1613,7 +1690,7 @@ function renderSessionScreen() {
   document.getElementById('session-ex-name').textContent = ex.name;
 
   const counterEl = document.getElementById('session-set-counter');
-  const totalSets = exId === 'paused_dips' ? 2 : 3;
+  const totalSets = exId === 'paused_dips' ? 2 : exId === 'accessory_chinups' ? 5 : 3;
   counterEl.textContent = SS.view === 'exercise_complete' ? 'COMPLETE ✓' : `SET ${SS.currentSetNum} OF ${totalSets}`;
 
   if (SS.isAccessory) {
@@ -1666,6 +1743,17 @@ function renderSessionContent() {
     repsInp.addEventListener('input', () => {
       logBtn.disabled = !repsInp.value.trim() || parseInt(repsInp.value) < 1;
     });
+    // Wire +/- stepper
+    content.querySelectorAll('.stepper-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const inp = document.getElementById(btn.dataset.target);
+        const min = parseInt(inp.min) || 0;
+        const max = parseInt(inp.max) || 99;
+        const cur = parseInt(inp.value) || 0;
+        inp.value = Math.min(max, Math.max(min, cur + parseInt(btn.dataset.delta)));
+        inp.dispatchEvent(new Event('input'));
+      });
+    });
     logBtn.addEventListener('click', handleLogSet);
     return;
   }
@@ -1681,6 +1769,17 @@ function renderSessionContent() {
   };
   repsInp.addEventListener('input', validate);
   rirInp.addEventListener('input', validate);
+  // Wire +/- steppers
+  content.querySelectorAll('.stepper-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const inp = document.getElementById(btn.dataset.target);
+      const min = parseInt(inp.min) || 0;
+      const max = parseInt(inp.max) || 99;
+      const cur = parseInt(inp.value) || 0;
+      inp.value = Math.min(max, Math.max(min, cur + parseInt(btn.dataset.delta)));
+      inp.dispatchEvent(new Event('input'));
+    });
+  });
   logBtn.addEventListener('click', handleLogSet);
 }
 
@@ -1703,11 +1802,19 @@ function buildSetInputHTML(targetLine) {
       <div class="set-input-grid">
         <div class="set-field-wrap">
           <div class="set-field-label">REPS</div>
-          <input type="number" class="set-number-input" id="input-reps" inputmode="numeric" min="1" max="30" placeholder="0" autocomplete="off"/>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button class="stepper-btn" data-target="input-reps" data-delta="-1">−</button>
+            <input type="number" class="set-number-input" id="input-reps" inputmode="numeric" min="1" max="30" placeholder="0" autocomplete="off"/>
+            <button class="stepper-btn" data-target="input-reps" data-delta="1">+</button>
+          </div>
         </div>
         <div class="set-field-wrap">
           <div class="set-field-label">RIR</div>
-          <input type="number" class="set-number-input" id="input-rir" inputmode="numeric" min="0" max="10" placeholder="0" autocomplete="off"/>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button class="stepper-btn" data-target="input-rir" data-delta="-1">−</button>
+            <input type="number" class="set-number-input" id="input-rir" inputmode="numeric" min="0" max="10" placeholder="0" autocomplete="off"/>
+            <button class="stepper-btn" data-target="input-rir" data-delta="1">+</button>
+          </div>
         </div>
       </div>
       <button class="btn btn-primary" id="btn-log-set" disabled>LOG SET</button>
@@ -1785,6 +1892,8 @@ function handleLogSet() {
     SS.currentSetNum = count >= maxSets ? maxSets : count + 1;
     if (count >= maxSets) SS.view = 'exercise_complete';
     renderSessionScreen();
+    // Auto-refocus reps for next set
+    if (SS.view === 'logging') setTimeout(() => { document.getElementById('input-reps')?.focus(); }, 80);
     return;
   }
 
@@ -1806,6 +1915,8 @@ function handleLogSet() {
     SS.currentSetNum = count + 1;
   }
   renderSessionScreen();
+  // Auto-refocus reps for next set
+  if (SS.view === 'logging') setTimeout(() => { document.getElementById('input-reps')?.focus(); }, 80);
 }
 
 function calcPrescription(exId) {
@@ -2065,7 +2176,11 @@ function buildAccessorySetInputHTML() {
       <div style="display:flex;justify-content:center;">
         <div class="set-field-wrap">
           <div class="set-field-label">REPS</div>
-          <input type="number" class="set-number-input" id="input-reps" inputmode="numeric" min="1" max="100" placeholder="0" autocomplete="off" style="width:120px;"/>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button class="stepper-btn" data-target="input-reps" data-delta="-1">−</button>
+            <input type="number" class="set-number-input" id="input-reps" inputmode="numeric" min="1" max="100" placeholder="0" autocomplete="off" style="width:120px;"/>
+            <button class="stepper-btn" data-target="input-reps" data-delta="1">+</button>
+          </div>
         </div>
       </div>
       <button class="btn btn-primary" id="btn-log-set" disabled style="margin-top:16px;">LOG SET</button>
@@ -2129,6 +2244,12 @@ function renderHistoryScreen() {
     const exSummary = sess.exercises.map(e => `${e.name.split(' ').pop()} ${e.actualWeight > 0 ? e.actualWeight + 'kg' : 'BW'}`).join(' • ');
     const anyPR = sess.exercises.some(e => e.hadPR);
     const isToday = sess.date === new Date().toISOString().split('T')[0];
+    // Total volume: sum of weight×reps across all sets across all exercises (skip bodyweight sets)
+    const totalVol = sess.exercises.reduce((sum, e) => {
+      if (!e.actualWeight) return sum;
+      return sum + (e.sets || []).reduce((s2, s) => s2 + s.reps * e.actualWeight, 0);
+    }, 0);
+    const volStr = totalVol > 0 ? `${totalVol.toLocaleString()}kg` : null;
 
     const card = document.createElement('div');
     card.className = isToday ? 'history-card open' : 'history-card';
@@ -2161,6 +2282,7 @@ function renderHistoryScreen() {
         </div>
         <div class="history-card-meta">
           <div class="history-card-exs">${exSummary}</div>
+          ${volStr ? `<div style="font-size:10px;color:var(--muted);margin-top:2px;">Vol ${volStr}</div>` : ''}
         </div>
         <svg class="history-chevron" width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M6 4l4 4-4 4" stroke="#444" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </div>
@@ -2181,6 +2303,48 @@ function renderHistoryScreen() {
 // ═══════════════════════════════════════════════════════════════
 // PROGRESS SCREEN
 // ═══════════════════════════════════════════════════════════════
+
+function buildPRHistoryHTML(ex) {
+  // Collect all sessions that were PRs by scanning sessions where a new-best was set.
+  // We reconstruct a running best-weight-and-reps from sessions to find historic PRs.
+  const sessions = (ex.sessions || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+  if (!sessions.length) return '';
+
+  const prRows = [];
+  let bestWeight = -1, bestReps = -1;
+  for (const s of sessions) {
+    const w = s.actualWeight || 0;
+    const bestSet = (s.sets || []).reduce((best, set) =>
+      set.reps > best.reps || (set.reps === best.reps && w >= bestWeight) ? set : best, { reps: 0 });
+    if (w > bestWeight || (w === bestWeight && bestSet.reps > bestReps)) {
+      bestWeight = w;
+      bestReps = bestSet.reps;
+      const { day, date } = fmtDate(s.date);
+      prRows.push({ day, date, weight: w, reps: bestSet.reps });
+    }
+  }
+  if (prRows.length < 2) return ''; // only show if there's actual history
+
+  const rows = prRows.slice().reverse().slice(0, 8).map((r, i) =>
+    `<tr class="${i % 2 === 0 ? 'even' : 'odd'}">
+      <td>${r.day} ${r.date}</td>
+      <td class="bold">${r.weight}kg</td>
+      <td>${r.reps} reps</td>
+    </tr>`
+  ).join('');
+
+  return `
+    <div style="margin-top:16px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">PR HISTORY</div>
+      <div class="table-wrap">
+        <table class="session-table">
+          <thead><tr><th>DATE</th><th>WEIGHT</th><th>REPS</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
 
 let progressEx     = 'dips';
 let progressPeriod = 'all';
@@ -2320,7 +2484,7 @@ function renderProgressContent() {
     `<div class="chart-wrap" style="margin-bottom:12px;">
       <canvas class="progress-canvas" id="progress-canvas"></canvas>
       <div class="chart-tooltip" id="chart-tooltip"></div>
-    </div>` + statsHTML + tableHTML;
+    </div>` + statsHTML + tableHTML + buildPRHistoryHTML(ex);
 
   // Wire period tabs
   document.getElementById('period-tabs').querySelectorAll('.period-tab').forEach(btn => {
