@@ -3050,27 +3050,9 @@ document.getElementById('mr2-confirm').addEventListener('click', () => {
 // INIT + PWA
 // ═══════════════════════════════════════════════════════════════
 
-// Service Worker (blob URL for single-file PWA)
+// Service Worker
 if ('serviceWorker' in navigator) {
-  const swCode = `
-    const CACHE = 'rogue-v${APP_VERSION}';
-    self.addEventListener('install', e => {
-      e.waitUntil(caches.open(CACHE).then(c => c.addAll(['./'])));
-      self.skipWaiting();
-    });
-    self.addEventListener('activate', e => {
-      e.waitUntil(caches.keys().then(keys =>
-        Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-      ));
-      self.clients.claim();
-    });
-    self.addEventListener('fetch', e => {
-      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request)));
-    });
-  `;
-  const swBlob = new Blob([swCode], { type: 'application/javascript' });
-  const swURL  = URL.createObjectURL(swBlob);
-  navigator.serviceWorker.register(swURL).catch(() => {});
+  navigator.serviceWorker.register('./sw.js').catch(() => {});
 }
 
 // Offline indicator
