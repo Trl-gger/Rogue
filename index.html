@@ -1910,7 +1910,9 @@
           <div class="session-set-counter" id="session-set-counter">SET 1 OF 3</div>
         </div>
         <div class="session-progress-bar" id="session-progress-bar" style="margin-bottom:16px;"></div>
-        <div id="session-phase-banner" style="display:none;background:#ffaa00;color:#000;font-size:12px;font-weight:600;padding:8px 20px;margin:0 -20px 12px;text-align:center;line-height:1.4;">Advanced Intermediate phase uses a 2-week mesocycle structure. Update your programme before continuing.</div>
+        <div id="session-phase-banner"
+          style="display:none;background:#ffaa00;color:#000;font-size:12px;font-weight:600;padding:8px 20px;margin:0 -20px 12px;text-align:center;line-height:1.4;">
+          Advanced Intermediate phase uses a 2-week mesocycle structure. Update your programme before continuing.</div>
         <div class="session-presc-weight" id="session-prescribed">—<span>kg</span></div>
         <div id="session-content"></div>
         <div class="scroll-pad"></div>
@@ -2319,7 +2321,7 @@
       return { isPR: true, newPR: { weight: session.actualWeight, reps: bestSet.reps, date: new Date().toISOString().split('T')[0] } };
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // ══════════════════════════════════════════════════════════════
     // STORAGE
     // ═══════════════════════════════════════════════════════════════
 
@@ -2363,12 +2365,12 @@
 
     function getPhaseDisplayName(phase) {
       switch (phase) {
-        case 'novice':          return 'Novice';
+        case 'novice': return 'Novice';
         case 'advanced_novice': return 'Advanced Novice';
         case 'intermediate_s1': return 'Intermediate';
         case 'intermediate_s2': return 'Advanced Intermediate';
-        case 'advanced':        return 'Advanced';
-        default:                return phase;
+        case 'advanced': return 'Advanced';
+        default: return phase;
       }
     }
 
@@ -4345,83 +4347,83 @@
       let r;
 
       // ── NOVICE ────────────────────────────────────────────────
-      r = getNextPrescription(mkEx('dips',    'novice', 20), { sets:[{reps:8,rir:1}], sessionType:'heavy' });
-      check('N1', 'novice dips 8 reps RIR 1 → +2.5kg',       r, { increment:2.5 });
+      r = getNextPrescription(mkEx('dips', 'novice', 20), { sets: [{ reps: 8, rir: 1 }], sessionType: 'heavy' });
+      check('N1', 'novice dips 8 reps RIR 1 → +2.5kg', r, { increment: 2.5 });
 
-      r = getNextPrescription(mkEx('dips',    'novice', 20), { sets:[{reps:8,rir:0}], sessionType:'heavy' });
-      check('N2', 'novice dips 8 reps RIR 0 → +1.25kg',      r, { increment:1.25 });
+      r = getNextPrescription(mkEx('dips', 'novice', 20), { sets: [{ reps: 8, rir: 0 }], sessionType: 'heavy' });
+      check('N2', 'novice dips 8 reps RIR 0 → +1.25kg', r, { increment: 1.25 });
 
-      r = getNextPrescription(mkEx('pullups', 'novice', 10), { sets:[{reps:7,rir:1}], sessionType:'heavy' });
-      check('N3', 'novice pullups 7 reps RIR 1 → +1.25kg',   r, { increment:1.25 });
+      r = getNextPrescription(mkEx('pullups', 'novice', 10), { sets: [{ reps: 7, rir: 1 }], sessionType: 'heavy' });
+      check('N3', 'novice pullups 7 reps RIR 1 → +1.25kg', r, { increment: 1.25 });
 
-      r = getNextPrescription(mkEx('pullups', 'novice', 10), { sets:[{reps:7,rir:0}], sessionType:'heavy' });
-      check('N4', 'novice pullups 7 reps RIR 0 → +0.5kg',    r, { increment:0.5 });
+      r = getNextPrescription(mkEx('pullups', 'novice', 10), { sets: [{ reps: 7, rir: 0 }], sessionType: 'heavy' });
+      check('N4', 'novice pullups 7 reps RIR 0 → +0.5kg', r, { increment: 0.5 });
 
-      r = getNextPrescription(mkEx('chinups', 'novice', 10), { sets:[{reps:6,rir:1}], sessionType:'heavy' });
-      check('N5', 'novice chinups 6 reps RIR 1 → +0.5kg',    r, { increment:0.5 });
+      r = getNextPrescription(mkEx('chinups', 'novice', 10), { sets: [{ reps: 6, rir: 1 }], sessionType: 'heavy' });
+      check('N5', 'novice chinups 6 reps RIR 1 → +0.5kg', r, { increment: 0.5 });
 
-      r = getNextPrescription(mkEx('chinups', 'novice', 10), { sets:[{reps:6,rir:0}], sessionType:'heavy' });
-      check('N6', 'novice chinups 6 reps RIR 0 → hold + stallCount++', r, { increment:0, stallIncrement:true });
+      r = getNextPrescription(mkEx('chinups', 'novice', 10), { sets: [{ reps: 6, rir: 0 }], sessionType: 'heavy' });
+      check('N6', 'novice chinups 6 reps RIR 0 → hold + stallCount++', r, { increment: 0, stallIncrement: true });
 
-      r = getNextPrescription(mkEx('dips',    'novice', 20), { sets:[{reps:5,rir:2}], sessionType:'heavy' });
-      check('N7', 'novice dips 5 reps → deload',             r, { increment:0, deloadSuggested:true });
+      r = getNextPrescription(mkEx('dips', 'novice', 20), { sets: [{ reps: 5, rir: 2 }], sessionType: 'heavy' });
+      check('N7', 'novice dips 5 reps → deload', r, { increment: 0, deloadSuggested: true });
 
-      r = getNextPrescription(mkEx('dips',    'novice', 20), { sets:[{reps:8,rir:2}], sessionType:'heavy' });
-      check('N8', 'novice dips 8 reps RIR 2 → +2.5kg',      r, { increment:2.5 });
+      r = getNextPrescription(mkEx('dips', 'novice', 20), { sets: [{ reps: 8, rir: 2 }], sessionType: 'heavy' });
+      check('N8', 'novice dips 8 reps RIR 2 → +2.5kg', r, { increment: 2.5 });
 
       // ── ADVANCED NOVICE ───────────────────────────────────────
-      r = getNextPrescription(mkEx('dips',    'advanced_novice', 40), { sets:[{reps:6,rir:1}], sessionType:'heavy' });
-      check('AN1', 'adv_novice dips 6 reps RIR 1 → +2.5kg',  r, { increment:2.5 });
+      r = getNextPrescription(mkEx('dips', 'advanced_novice', 40), { sets: [{ reps: 6, rir: 1 }], sessionType: 'heavy' });
+      check('AN1', 'adv_novice dips 6 reps RIR 1 → +2.5kg', r, { increment: 2.5 });
 
-      r = getNextPrescription(mkEx('dips',    'advanced_novice', 40), { sets:[{reps:6,rir:2}], sessionType:'heavy' });
-      check('AN2', 'adv_novice dips 6 reps RIR 2 → +2.5kg',  r, { increment:2.5 });
+      r = getNextPrescription(mkEx('dips', 'advanced_novice', 40), { sets: [{ reps: 6, rir: 2 }], sessionType: 'heavy' });
+      check('AN2', 'adv_novice dips 6 reps RIR 2 → +2.5kg', r, { increment: 2.5 });
 
-      r = getNextPrescription(mkEx('dips',    'advanced_novice', 40), { sets:[{reps:6,rir:0}], sessionType:'heavy' });
-      check('AN3', 'adv_novice dips 6 reps RIR 0 → +1.25kg', r, { increment:1.25 });
+      r = getNextPrescription(mkEx('dips', 'advanced_novice', 40), { sets: [{ reps: 6, rir: 0 }], sessionType: 'heavy' });
+      check('AN3', 'adv_novice dips 6 reps RIR 0 → +1.25kg', r, { increment: 1.25 });
 
-      r = getNextPrescription(mkEx('pullups', 'advanced_novice', 25), { sets:[{reps:5,rir:1}], sessionType:'heavy' });
-      check('AN4', 'adv_novice pullups 5 reps RIR 1 → +1.25kg', r, { increment:1.25 });
+      r = getNextPrescription(mkEx('pullups', 'advanced_novice', 25), { sets: [{ reps: 5, rir: 1 }], sessionType: 'heavy' });
+      check('AN4', 'adv_novice pullups 5 reps RIR 1 → +1.25kg', r, { increment: 1.25 });
 
-      r = getNextPrescription(mkEx('pullups', 'advanced_novice', 25), { sets:[{reps:5,rir:0}], sessionType:'heavy' });
-      check('AN5', 'adv_novice pullups 5 reps RIR 0 → +0.5kg',  r, { increment:0.5 });
+      r = getNextPrescription(mkEx('pullups', 'advanced_novice', 25), { sets: [{ reps: 5, rir: 0 }], sessionType: 'heavy' });
+      check('AN5', 'adv_novice pullups 5 reps RIR 0 → +0.5kg', r, { increment: 0.5 });
 
-      r = getNextPrescription(mkEx('chinups', 'advanced_novice', 30), { sets:[{reps:4,rir:1}], sessionType:'heavy' });
-      check('AN6', 'adv_novice chinups 4 reps RIR 1 → +0.5kg',  r, { increment:0.5 });
+      r = getNextPrescription(mkEx('chinups', 'advanced_novice', 30), { sets: [{ reps: 4, rir: 1 }], sessionType: 'heavy' });
+      check('AN6', 'adv_novice chinups 4 reps RIR 1 → +0.5kg', r, { increment: 0.5 });
 
-      r = getNextPrescription(mkEx('chinups', 'advanced_novice', 30), { sets:[{reps:4,rir:0}], sessionType:'heavy' });
-      check('AN7', 'adv_novice chinups 4 reps RIR 0 → hold + stallCount++', r, { increment:0, stallIncrement:true });
+      r = getNextPrescription(mkEx('chinups', 'advanced_novice', 30), { sets: [{ reps: 4, rir: 0 }], sessionType: 'heavy' });
+      check('AN7', 'adv_novice chinups 4 reps RIR 0 → hold + stallCount++', r, { increment: 0, stallIncrement: true });
 
-      r = getNextPrescription(mkEx('dips',    'advanced_novice', 40), { sets:[{reps:3,rir:2}], sessionType:'heavy' });
-      check('AN8', 'adv_novice dips 3 reps → deload',          r, { increment:0, deloadSuggested:true });
+      r = getNextPrescription(mkEx('dips', 'advanced_novice', 40), { sets: [{ reps: 3, rir: 2 }], sessionType: 'heavy' });
+      check('AN8', 'adv_novice dips 3 reps → deload', r, { increment: 0, deloadSuggested: true });
 
       // ── INTERMEDIATE S1 ───────────────────────────────────────
-      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets:[{reps:6,rir:0}], sessionType:'pr' });
-      check('I1', 'intermediate_s1 dips PR 6 reps → +2.5kg',  r, { increment:2.5 });
+      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets: [{ reps: 6, rir: 0 }], sessionType: 'pr' });
+      check('I1', 'intermediate_s1 dips PR 6 reps → +2.5kg', r, { increment: 2.5 });
 
-      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets:[{reps:5,rir:0}], sessionType:'pr' });
-      check('I2', 'intermediate_s1 dips PR 5 reps → +1.25kg', r, { increment:1.25 });
+      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets: [{ reps: 5, rir: 0 }], sessionType: 'pr' });
+      check('I2', 'intermediate_s1 dips PR 5 reps → +1.25kg', r, { increment: 1.25 });
 
-      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets:[{reps:4,rir:0}], sessionType:'pr' });
-      check('I3', 'intermediate_s1 dips PR 4 reps → +0.5kg',  r, { increment:0.5 });
+      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets: [{ reps: 4, rir: 0 }], sessionType: 'pr' });
+      check('I3', 'intermediate_s1 dips PR 4 reps → +0.5kg', r, { increment: 0.5 });
 
-      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets:[{reps:2,rir:0}], sessionType:'pr' });
-      check('I4', 'intermediate_s1 dips PR 2 reps → hold + stallCount++', r, { increment:0, stallIncrement:true });
+      r = getNextPrescription(mkEx('dips', 'intermediate_s1', 75), { sets: [{ reps: 2, rir: 0 }], sessionType: 'pr' });
+      check('I4', 'intermediate_s1 dips PR 2 reps → hold + stallCount++', r, { increment: 0, stallIncrement: true });
 
       // ── ADVANCED INTERMEDIATE S2 ──────────────────────────────
-      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets:[{reps:3,rir:2}], sessionType:'heavy' });
-      check('AI1', 'intermediate_s2 dips heavy RIR 2 → +2.5kg',  r, { increment:2.5 });
+      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets: [{ reps: 3, rir: 2 }], sessionType: 'heavy' });
+      check('AI1', 'intermediate_s2 dips heavy RIR 2 → +2.5kg', r, { increment: 2.5 });
 
-      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets:[{reps:3,rir:1}], sessionType:'heavy' });
-      check('AI2', 'intermediate_s2 dips heavy RIR 1 → +1.25kg', r, { increment:1.25 });
+      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets: [{ reps: 3, rir: 1 }], sessionType: 'heavy' });
+      check('AI2', 'intermediate_s2 dips heavy RIR 1 → +1.25kg', r, { increment: 1.25 });
 
-      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets:[{reps:3,rir:0}], sessionType:'heavy' });
-      check('AI3', 'intermediate_s2 dips heavy RIR 0 → +0.5kg',  r, { increment:0.5 });
+      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets: [{ reps: 3, rir: 0 }], sessionType: 'heavy' });
+      check('AI3', 'intermediate_s2 dips heavy RIR 0 → +0.5kg', r, { increment: 0.5 });
 
-      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets:[{reps:6,rir:1}], sessionType:'assistance' });
-      check('AI4', 'intermediate_s2 dips assistance 6 reps RIR 1 → +2.5kg', r, { increment:2.5 });
+      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets: [{ reps: 6, rir: 1 }], sessionType: 'assistance' });
+      check('AI4', 'intermediate_s2 dips assistance 6 reps RIR 1 → +2.5kg', r, { increment: 2.5 });
 
-      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets:[{reps:3,rir:0}], sessionType:'assistance' });
-      check('AI5', 'intermediate_s2 dips assistance 3 reps RIR 0 → hold + stallCount++', r, { increment:0, stallIncrement:true });
+      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets: [{ reps: 3, rir: 0 }], sessionType: 'assistance' });
+      check('AI5', 'intermediate_s2 dips assistance 3 reps RIR 0 → hold + stallCount++', r, { increment: 0, stallIncrement: true });
 
       // ── PAUSED DIPS ───────────────────────────────────────────
       const pd1 = calculateStartingWeight('paused_dips', 0, 62.5);
