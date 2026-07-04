@@ -1129,6 +1129,13 @@
       border-bottom: 1px solid var(--border);
       margin: 0 -20px 16px;
       padding: 0 20px;
+      overflow-x: auto;
+      scrollbar-width: none;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .filter-bar::-webkit-scrollbar {
+      display: none;
     }
 
     .filter-tab {
@@ -1144,6 +1151,7 @@
       cursor: pointer;
       border-bottom: 2px solid transparent;
       margin-bottom: -1px;
+      flex-shrink: 0;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -1903,6 +1911,7 @@
           <div class="session-set-counter" id="session-set-counter">SET 1 OF 3</div>
         </div>
         <div class="session-progress-bar" id="session-progress-bar" style="margin-bottom:16px;"></div>
+        <div id="session-phase-banner" style="display:none;background:#ffaa00;color:#000;font-size:12px;font-weight:600;padding:8px 20px;margin:0 -20px 12px;text-align:center;line-height:1.4;">Advanced Intermediate phase uses a 2-week mesocycle structure. Update your programme before continuing.</div>
         <div class="session-presc-weight" id="session-prescribed">—<span>kg</span></div>
         <div id="session-content"></div>
         <div class="scroll-pad"></div>
@@ -2201,7 +2210,7 @@
       if (reps >= 8) return rir >= 1 ? { increment: 2.5, stall: false, ds: false } : { increment: 1.25, stall: false, ds: false };
       if (reps === 7) return rir >= 1 ? { increment: 1.25, stall: false, ds: false } : { increment: 0.5, stall: false, ds: false };
       if (reps === 6) return rir >= 1 ? { increment: 0.5, stall: false, ds: false } : { increment: 0, stall: true, ds: false };
-      if (reps === 5) return { increment: 0, stall: true, ds: false };
+      if (reps === 5) return { increment: 0, stall: true, ds: true }; // immediate deload per programme spec
       return { increment: 0, stall: true, ds: true };
     }
 
@@ -2240,6 +2249,15 @@
       return { increment: 0, stall: true, ds: false };
     }
 
+    // Assistance-day increment table for intermediate_s2 (reps+RIR based, not RIR-only)
+    function getIncrementIntermediateS2Assistance({ reps, rir }) {
+      if (reps >= 6) return rir >= 1 ? { increment: 2.5, stall: false, ds: false } : { increment: 1.25, stall: false, ds: false };
+      if (reps === 5) return rir >= 1 ? { increment: 1.25, stall: false, ds: false } : { increment: 0.5, stall: false, ds: false };
+      if (reps === 4) return rir >= 1 ? { increment: 0.5, stall: false, ds: false } : { increment: 0, stall: true, ds: false };
+      // 3 reps or fewer → stall
+      return { increment: 0, stall: true, ds: false };
+    }
+
     function evaluateStall(stallCount, didStall, incrementGiven) {
       let n = stallCount;
       if (incrementGiven) n = 0; else if (didStall) n = stallCount + 1;
@@ -2265,7 +2283,11 @@
             result = { increment: 0, stall: false, ds: false };
           }
           break;
-        case 'intermediate_s2': result = getIncrementIntermediateS2(hs, lastSession.sets); break;
+        case 'intermediate_s2':
+          result = lastSession.sessionType === 'assistance'
+            ? getIncrementIntermediateS2Assistance(hs)
+            : getIncrementIntermediateS2(hs, lastSession.sets);
+          break;
         default: result = { increment: 0, stall: false, ds: false };
       }
       const inc = result.increment;
@@ -2890,6 +2912,10 @@
           : ex.currentWeight;
         document.getElementById('session-prescribed').innerHTML = `${effectiveWeight}<span>kg</span>`;
       }
+
+      // S2 permanent warning banner — show every session, not dismissable
+      const phaseBanner = document.getElementById('session-phase-banner');
+      if (phaseBanner) phaseBanner.style.display = ex.phase === 'intermediate_s2' ? '' : 'none';
 
       // Progress dots
       const bar = document.getElementById('session-progress-bar');
