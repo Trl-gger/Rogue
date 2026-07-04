@@ -1,4 +1,4 @@
-const CACHE = 'rogue-v2'; // Bump this on every deployment
+const CACHE = 'rogue-v1.1.0'; // Must match APP_VERSION in index.html — bump on every deployment
 
 self.addEventListener('install', e => {
   e.waitUntil(
@@ -22,24 +22,7 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  const isHTML = e.request.mode === 'navigate' ||
-    e.request.headers.get('accept')?.includes('text/html');
-
-  if (isHTML) {
-    // Network first for HTML — always fetch fresh, fall back to cache
-    e.respondWith(
-      fetch(e.request)
-        .then(response => {
-          const clone = response.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-          return response;
-        })
-        .catch(() => caches.match(e.request))
-    );
-  } else {
-    // Cache first for assets — fast loading
-    e.respondWith(
-      caches.match(e.request).then(r => r || fetch(e.request))
-    );
-  }
+  e.respondWith(
+    caches.match(e.request).then(r => r || fetch(e.request))
+  );
 });
