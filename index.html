@@ -2177,7 +2177,7 @@
     // ENGINE — full implementation
     // ═══════════════════════════════════════════════════════════════
 
-    const APP_VERSION = '1.1.0'; // Bump this on every deployment to invalidate the service worker cache
+    const APP_VERSION = '1.1.1'; // Bump this on every deployment to invalidate the service worker cache
 
     function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
@@ -2633,12 +2633,16 @@
       const d1 = parseFloat(state.weights.dips1rm) || roundToHalf(dv * (1 + dr / 30));
       const p1 = parseFloat(state.weights.pullups1rm) || roundToHalf(pv * (1 + pr / 30));
       const c1 = parseFloat(state.weights.chinups1rm) || roundToHalf(cv * (1 + cr / 30));
+      // Compute actual 6RM from Epley (1RM / 1.2)
+      const d6 = roundToHalf(d1 / 1.2);
+      const p6 = roundToHalf(p1 / 1.2);
+      const c6 = roundToHalf(c1 / 1.2);
       const data = getDefaultData();
       data.profile.onboardingComplete = true;
       data.profile.setupDate = new Date().toISOString();
-      data.exercises.dips.phase = detectPhaseFromReps('dips', dv, dr); data.exercises.dips.currentWeight = dv; data.exercises.dips.startingWeight = dv; data.exercises.dips.sixRM = dv; data.exercises.dips.oneRM = d1;
-      data.exercises.pullups.phase = detectPhaseFromReps('pullups', pv, pr); data.exercises.pullups.currentWeight = pv; data.exercises.pullups.startingWeight = pv; data.exercises.pullups.sixRM = pv; data.exercises.pullups.oneRM = p1;
-      data.exercises.chinups.phase = detectPhaseFromReps('chinups', cv, cr); data.exercises.chinups.currentWeight = cv; data.exercises.chinups.startingWeight = cv; data.exercises.chinups.sixRM = cv; data.exercises.chinups.oneRM = c1;
+      data.exercises.dips.phase = detectPhaseFromReps('dips', dv, dr); data.exercises.dips.currentWeight = dv; data.exercises.dips.startingWeight = dv; data.exercises.dips.sixRM = d6; data.exercises.dips.oneRM = d1;
+      data.exercises.pullups.phase = detectPhaseFromReps('pullups', pv, pr); data.exercises.pullups.currentWeight = pv; data.exercises.pullups.startingWeight = pv; data.exercises.pullups.sixRM = p6; data.exercises.pullups.oneRM = p1;
+      data.exercises.chinups.phase = detectPhaseFromReps('chinups', cv, cr); data.exercises.chinups.currentWeight = cv; data.exercises.chinups.startingWeight = cv; data.exercises.chinups.sixRM = c6; data.exercises.chinups.oneRM = c1;
       const pd = calculateStartingWeight('paused_dips', null, dv);
       data.exercises.paused_dips.currentWeight = pd; data.exercises.paused_dips.startingWeight = pd;
       saveData(data);
