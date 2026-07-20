@@ -1727,8 +1727,8 @@
           <div>
             <div class="screen-title">YOUR STARTING WEIGHTS</div>
             <div style="height:6px;"></div>
-            <div class="screen-sub">Enter the weight you currently train with for 6 reps on each exercise</div>
-            <div style="font-size:12px;color:#555;margin-top:4px;">Working weight, not a max test — added weight only
+            <div class="screen-sub">Enter the weight you currently train with and how many reps you get</div>
+            <div style="font-size:12px;color:#555;margin-top:4px;">Added weight only — not bodyweight
             </div>
           </div>
         </div>
@@ -1751,9 +1751,12 @@
               </div>
               <div class="phase-badge empty" id="badge-dips">—</div>
             </div>
-            <div class="input-hint">Working weight at 6 reps (kg added)</div>
+            <div class="input-hint">Current working weight (kg added)</div>
             <input class="input-field" id="input-dips" type="number" inputmode="decimal" min="0" max="200" step="0.5"
               placeholder="e.g. 40" autocomplete="off" />
+            <div class="input-hint" style="margin-top:10px;">Reps you currently get at this weight</div>
+            <input class="input-field" id="input-dips-reps" type="number" inputmode="numeric" min="1" max="20" step="1"
+              placeholder="e.g. 8" autocomplete="off" />
             <div class="input-hint" style="margin-top:10px;color:#444;">Estimated 1RM <span
                 style="color:#333;">(optional)</span></div>
             <input class="input-field" id="input-dips-1rm" type="number" inputmode="decimal" min="0" max="300"
@@ -1767,9 +1770,12 @@
               </div>
               <div class="phase-badge empty" id="badge-pullups">—</div>
             </div>
-            <div class="input-hint">Working weight at 6 reps (kg added)</div>
+            <div class="input-hint">Current working weight (kg added)</div>
             <input class="input-field" id="input-pullups" type="number" inputmode="decimal" min="0" max="200" step="0.5"
               placeholder="e.g. 20" autocomplete="off" />
+            <div class="input-hint" style="margin-top:10px;">Reps you currently get at this weight</div>
+            <input class="input-field" id="input-pullups-reps" type="number" inputmode="numeric" min="1" max="20" step="1"
+              placeholder="e.g. 8" autocomplete="off" />
             <div class="input-hint" style="margin-top:10px;color:#444;">Estimated 1RM <span
                 style="color:#333;">(optional)</span></div>
             <input class="input-field" id="input-pullups-1rm" type="number" inputmode="decimal" min="0" max="300"
@@ -1783,9 +1789,12 @@
               </div>
               <div class="phase-badge empty" id="badge-chinups">—</div>
             </div>
-            <div class="input-hint">Working weight at 6 reps (kg added)</div>
+            <div class="input-hint">Current working weight (kg added)</div>
             <input class="input-field" id="input-chinups" type="number" inputmode="decimal" min="0" max="200" step="0.5"
               placeholder="e.g. 25" autocomplete="off" />
+            <div class="input-hint" style="margin-top:10px;">Reps you currently get at this weight</div>
+            <input class="input-field" id="input-chinups-reps" type="number" inputmode="numeric" min="1" max="20" step="1"
+              placeholder="e.g. 8" autocomplete="off" />
             <div class="input-hint" style="margin-top:10px;color:#444;">Estimated 1RM <span
                 style="color:#333;">(optional)</span></div>
             <input class="input-field" id="input-chinups-1rm" type="number" inputmode="decimal" min="0" max="300"
@@ -2172,6 +2181,7 @@
 
     function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
+    // detectPhase: weight-only fallback (used internally; prefer detectPhaseFromReps)
     function detectPhase(exerciseId, weight) {
       if (exerciseId === 'dips') {
         if (weight < 40) return 'novice';
@@ -2191,6 +2201,20 @@
         if (weight < 75) return 'intermediate_s1';
         return 'intermediate_s2';
       }
+    }
+
+    // detectPhaseFromReps: converts the user's actual weight+reps to an estimated 6RM
+    // using the Epley formula, then runs that through detectPhase.
+    // The existing detectPhase thresholds were calibrated for 6-rep working weights, so
+    // this correctly handles any rep count.
+    // e.g. 70kg × 8 reps → est. 6RM ≈ 73.9kg → intermediate_s1 (not novice)
+    //      35kg × 8 reps → est. 6RM ≈ 36.9kg → novice ✓
+    //      75kg × 3 reps → est. 6RM ≈ 68.75kg → advanced_novice ✓
+    function detectPhaseFromReps(exerciseId, weight, reps) {
+      if (!reps || reps <= 0) return detectPhase(exerciseId, weight);
+      // Epley 1RM = w × (1 + reps/30); 6RM = 1RM / (1 + 6/30) = 1RM / 1.2
+      const estimated6RM = weight * (1 + reps / 30) / 1.2;
+      return detectPhase(exerciseId, estimated6RM);
     }
 
     function calculateStartingWeight(exerciseId, sixRM, regularDipsWeight) {
@@ -2351,6 +2375,7 @@
     // ═══════════════════════════════════════════════════════════════
 
     const STORAGE_KEY = 'wct_data';
+    const SS_STORAGE_KEY = 'wct_active_session';
 
     function getDefaultData() {
       return {
@@ -2367,6 +2392,14 @@
     }
 
     function saveData(data) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) { console.error(e); } }
+
+    function persistSS() {
+      try { localStorage.setItem(SS_STORAGE_KEY, JSON.stringify(SS)); } catch (e) { console.error('persistSS failed:', e); }
+    }
+
+    function clearPersistedSS() {
+      try { localStorage.removeItem(SS_STORAGE_KEY); } catch (e) { }
+    }
     function loadData() {
       try {
         const r = localStorage.getItem(STORAGE_KEY);
@@ -2550,6 +2583,8 @@
       ['dips', 'pullups', 'chinups'].forEach(ex => {
         const inp = document.getElementById(`input-${ex}`);
         if (inp && state.weights[ex]) inp.value = state.weights[ex];
+        const repsInp = document.getElementById(`input-${ex}-reps`);
+        if (repsInp && state.weights[`${ex}reps`]) repsInp.value = state.weights[`${ex}reps`];
       });
       updateWeightDisplays();
     }
@@ -2557,15 +2592,18 @@
     function updateWeightDisplays() {
       ['dips', 'pullups', 'chinups'].forEach(ex => {
         const inp = document.getElementById(`input-${ex}`);
+        const repsInp = document.getElementById(`input-${ex}-reps`);
         const badge = document.getElementById(`badge-${ex}`);
         const sw = document.getElementById(`sw-${ex}`);
         if (!inp) return;
         state.weights[ex] = inp.value;
+        state.weights[`${ex}reps`] = repsInp?.value || '';
         state.weights[`${ex}1rm`] = document.getElementById(`input-${ex}-1rm`)?.value || '';
         const val = parseFloat(inp.value);
+        const reps = parseInt(repsInp?.value) || 0;
         const has = inp.value.trim() !== '' && val >= 0;
         if (has) {
-          const phase = detectPhase(ex, val);
+          const phase = detectPhaseFromReps(ex, val, reps);
           badge.textContent = PHASE_LABELS[phase] || phase;
           badge.className = `phase-badge ${phase}`;
           sw.textContent = `${val}kg`;
@@ -2576,7 +2614,11 @@
       const dv = parseFloat(document.getElementById('input-dips')?.value) || 0;
       const dHas = document.getElementById('input-dips')?.value.trim() !== '';
       document.getElementById('sw-paused').textContent = dHas && dv >= 0 ? `${calculateStartingWeight('paused_dips', null, dv)}kg` : '—';
-      const all = ['dips', 'pullups', 'chinups'].every(ex => { const v = document.getElementById(`input-${ex}`)?.value.trim(); return v !== '' && parseFloat(v) >= 0; });
+      const all = ['dips', 'pullups', 'chinups'].every(ex => {
+        const v = document.getElementById(`input-${ex}`)?.value.trim();
+        const r = document.getElementById(`input-${ex}-reps`)?.value.trim();
+        return v !== '' && parseFloat(v) >= 0 && r !== '' && parseInt(r) >= 1;
+      });
       document.getElementById('btn-confirm-weights').disabled = !all;
     }
 
@@ -2584,16 +2626,19 @@
       const dv = parseFloat(state.weights.dips) || 0;
       const pv = parseFloat(state.weights.pullups) || 0;
       const cv = parseFloat(state.weights.chinups) || 0;
-      // 1RM: use entered value or Epley formula (sixRM × 1.2)
-      const d1 = parseFloat(state.weights.dips1rm) || roundToHalf(dv * 1.2);
-      const p1 = parseFloat(state.weights.pullups1rm) || roundToHalf(pv * 1.2);
-      const c1 = parseFloat(state.weights.chinups1rm) || roundToHalf(cv * 1.2);
+      const dr = parseInt(state.weights.dipsreps) || 6;
+      const pr = parseInt(state.weights.pullupsreps) || 6;
+      const cr = parseInt(state.weights.chinupsreps) || 6;
+      // Epley 1RM: weight × (1 + reps/30) — accurate at any rep count
+      const d1 = parseFloat(state.weights.dips1rm) || roundToHalf(dv * (1 + dr / 30));
+      const p1 = parseFloat(state.weights.pullups1rm) || roundToHalf(pv * (1 + pr / 30));
+      const c1 = parseFloat(state.weights.chinups1rm) || roundToHalf(cv * (1 + cr / 30));
       const data = getDefaultData();
       data.profile.onboardingComplete = true;
       data.profile.setupDate = new Date().toISOString();
-      data.exercises.dips.phase = detectPhase('dips', dv); data.exercises.dips.currentWeight = dv; data.exercises.dips.startingWeight = dv; data.exercises.dips.sixRM = dv; data.exercises.dips.oneRM = d1;
-      data.exercises.pullups.phase = detectPhase('pullups', pv); data.exercises.pullups.currentWeight = pv; data.exercises.pullups.startingWeight = pv; data.exercises.pullups.sixRM = pv; data.exercises.pullups.oneRM = p1;
-      data.exercises.chinups.phase = detectPhase('chinups', cv); data.exercises.chinups.currentWeight = cv; data.exercises.chinups.startingWeight = cv; data.exercises.chinups.sixRM = cv; data.exercises.chinups.oneRM = c1;
+      data.exercises.dips.phase = detectPhaseFromReps('dips', dv, dr); data.exercises.dips.currentWeight = dv; data.exercises.dips.startingWeight = dv; data.exercises.dips.sixRM = dv; data.exercises.dips.oneRM = d1;
+      data.exercises.pullups.phase = detectPhaseFromReps('pullups', pv, pr); data.exercises.pullups.currentWeight = pv; data.exercises.pullups.startingWeight = pv; data.exercises.pullups.sixRM = pv; data.exercises.pullups.oneRM = p1;
+      data.exercises.chinups.phase = detectPhaseFromReps('chinups', cv, cr); data.exercises.chinups.currentWeight = cv; data.exercises.chinups.startingWeight = cv; data.exercises.chinups.sixRM = cv; data.exercises.chinups.oneRM = c1;
       const pd = calculateStartingWeight('paused_dips', null, dv);
       data.exercises.paused_dips.currentWeight = pd; data.exercises.paused_dips.startingWeight = pd;
       saveData(data);
@@ -2922,6 +2967,7 @@
         }
       });
       showScreen('s-session');
+      persistSS();
       renderSessionScreen();
     }
 
@@ -3139,6 +3185,7 @@
         const maxSets = exId === 'accessory_chinups' ? 5 : 3;
         SS.currentSetNum = count >= maxSets ? maxSets : count + 1;
         if (count >= maxSets) SS.view = 'exercise_complete';
+        persistSS();
         renderSessionScreen();
         // Auto-refocus reps for next set
         if (SS.view === 'logging') setTimeout(() => { document.getElementById('input-reps')?.focus(); }, 80);
@@ -3162,6 +3209,7 @@
       } else {
         SS.currentSetNum = count + 1;
       }
+      persistSS();
       renderSessionScreen();
       // Auto-refocus reps for next set
       if (SS.view === 'logging') setTimeout(() => { document.getElementById('input-reps')?.focus(); }, 80);
@@ -3356,17 +3404,20 @@
       if (data.profile.exportReminderCount >= 10) {
         data.profile.exportReminderCount = 0;
         saveData(data);
+        clearPersistedSS();
         showModal('modal-export');
         return;
       }
 
       if (phaseTransitionPending) {
         SS.phaseTransitionExId = phaseTransitionPending.exId;
+        clearPersistedSS();
         _activateScreen('s-today');
         setTimeout(() => showPhaseTransitionModal(phaseTransitionPending.exId, phaseTransitionPending.trigger, phaseTransitionPending.count), 400);
         return;
       }
 
+      clearPersistedSS();
       _activateScreen('s-today');
     }
 
@@ -3937,7 +3988,9 @@
     document.getElementById('weights-back').addEventListener('click', goBack);
     ['dips', 'pullups', 'chinups'].forEach(ex => {
       const inp = document.getElementById(`input-${ex}`);
+      const repsInp = document.getElementById(`input-${ex}-reps`);
       if (inp) { inp.addEventListener('input', updateWeightDisplays); inp.addEventListener('change', updateWeightDisplays); }
+      if (repsInp) { repsInp.addEventListener('input', updateWeightDisplays); repsInp.addEventListener('change', updateWeightDisplays); }
     });
     document.getElementById('btn-confirm-weights').addEventListener('click', () => showScreen('s-schedule'));
     document.getElementById('schedule-back').addEventListener('click', goBack);
@@ -3948,6 +4001,7 @@
     document.getElementById('modal-abandon-cancel').addEventListener('click', () => hideModal('modal-abandon'));
     document.getElementById('modal-abandon-confirm').addEventListener('click', () => {
       hideModal('modal-abandon');
+      clearPersistedSS();
       SS.exercises = []; state.navHistory = [];
       if (SS.wasUnscheduled) {
         // Return to exercise selector so the user can pick a different movement
@@ -4613,7 +4667,32 @@
       if (failedIds.length || sdFailed.length) console.log(`FAILED TESTS: [${[...failedIds, ...sdFailed].join(', ')}]`);
     })();
 
+    function checkForResumableSession() {
+      try {
+        const raw = localStorage.getItem(SS_STORAGE_KEY);
+        if (!raw) return false;
+        const saved = JSON.parse(raw);
+        // Only resume if it's from today — a stale session from a previous day should not resurface
+        if (saved.sessionDate !== new Date().toISOString().split('T')[0]) {
+          clearPersistedSS();
+          return false;
+        }
+        Object.assign(SS, saved);
+        return true;
+      } catch (e) {
+        clearPersistedSS();
+        return false;
+      }
+    }
+
     (function init() {
+      if (checkForResumableSession()) {
+        // Restore in-progress session — bypass onboarding/Today logic entirely
+        document.getElementById('bottom-nav').classList.remove('visible');
+        showScreen('s-session');
+        renderSessionScreen();
+        return;
+      }
       const data = loadData();
       if (data?.profile?.onboardingComplete) {
         checkAccessoryStreakReset();
