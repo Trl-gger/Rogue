@@ -2176,7 +2176,7 @@
     // ENGINE — full implementation
     // ═══════════════════════════════════════════════════════════════
 
-    const APP_VERSION = '1.1.1'; // Bump this on every deployment to invalidate the service worker cache
+    const APP_VERSION = '1.1.2'; // Bump this on every deployment to invalidate the service worker cache
 
     function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
@@ -2704,18 +2704,16 @@
           const apEx = data.exercises.accessory_pullups || { sessions: [] };
           const doneToday = apEx.sessions.some(s => s.date === todayStr);
           if (doneToday) {
-            const done = apEx.sessions.find(s => s.date === todayStr);
-            const repsStr = (done.sets || []).map(r => r.reps).join(', ');
             accessoryCardHTML = `
           <div class="presc-card" style="margin-bottom:16px;border-left:3px solid var(--success);">
             <div class="presc-ex-name">Accessory Pull-ups</div>
-            <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Done today (${repsStr})</div>
+            <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Accessory Pull-ups — done today</div>
           </div>`;
           } else {
             accessoryCardHTML = `
           <div class="presc-card" style="margin-bottom:16px;">
             <div class="presc-ex-name">Accessory Pull-ups</div>
-            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Max effort — 3 sets, reps only</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Complete accessory session</div>
             <button class="btn btn-secondary" id="btn-start-accessory" style="margin-top:12px;">START</button>
           </div>`;
           }
@@ -2731,17 +2729,16 @@
             const mon = new Date(now2); mon.setDate(now2.getDate() - diff); mon.setHours(0, 0, 0, 0);
             const thisWeekSess = acEx.sessions.find(s => new Date(s.date + 'T00:00:00') >= mon);
             const { day: dayStr } = fmtDate(thisWeekSess ? thisWeekSess.date : todayStr);
-            const repsStr = ((thisWeekSess?.sets) || []).map(r => r.reps).join(', ');
             accessoryCardHTML = `
           <div class="presc-card" style="margin-bottom:16px;border-left:3px solid var(--success);">
             <div class="presc-ex-name">Accessory Chin-ups</div>
-            <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Done this week (${dayStr}, ${repsStr})</div>
+            <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Accessory Chin-ups — done this week (${dayStr})</div>
           </div>`;
           } else {
             accessoryCardHTML = `
           <div class="presc-card" style="margin-bottom:16px;">
             <div class="presc-ex-name">Accessory Chin-ups</div>
-            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Max effort — 5 sets, reps only</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Complete accessory session</div>
             <button class="btn btn-secondary" id="btn-start-accessory" style="margin-top:12px;">START</button>
           </div>`;
           }
@@ -2986,8 +2983,12 @@
       document.getElementById('session-ex-name').textContent = ex.name;
 
       const counterEl = document.getElementById('session-set-counter');
-      const totalSets = exId === 'paused_dips' ? 2 : exId === 'accessory_chinups' ? 5 : 3;
-      counterEl.textContent = SS.view === 'exercise_complete' ? 'COMPLETE ✓' : `SET ${SS.currentSetNum} OF ${totalSets}`;
+      if (SS.isAccessory) {
+        counterEl.textContent = 'ACCESSORY';
+      } else {
+        const totalSets = exId === 'paused_dips' ? 2 : 3;
+        counterEl.textContent = SS.view === 'exercise_complete' ? 'COMPLETE ✓' : `SET ${SS.currentSetNum} OF ${totalSets}`;
+      }
 
       if (SS.isAccessory) {
         document.getElementById('session-prescribed').style.display = 'none';
@@ -3034,24 +3035,20 @@
       }
 
       if (SS.isAccessory) {
-        content.innerHTML = buildAccessorySetInputHTML() + buildPrevSetsHTML(sets);
-        const repsInp = document.getElementById('input-reps');
-        const logBtn = document.getElementById('btn-log-set');
-        repsInp.addEventListener('input', () => {
-          logBtn.disabled = !repsInp.value.trim() || parseInt(repsInp.value) < 1;
+        content.innerHTML = `
+          <div class="card" style="margin-bottom:12px;">
+            <div style="font-size:11px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:12px;">Mark this accessory session complete</div>
+            <div style="margin-bottom:16px;">
+              <div class="input-hint" style="margin-bottom:8px;">Notes (optional)</div>
+              <textarea class="notes-textarea" id="accessory-notes" placeholder="How did it feel? Anything to remember..."></textarea>
+            </div>
+            <button class="btn btn-primary" id="btn-accessory-complete">MARK COMPLETE</button>
+          </div>
+        `;
+        document.getElementById('btn-accessory-complete').addEventListener('click', () => {
+          const notesVal = document.getElementById('accessory-notes')?.value || '';
+          saveAccessorySession(notesVal);
         });
-        // Wire +/- stepper
-        content.querySelectorAll('.stepper-btn').forEach(btn => {
-          btn.addEventListener('click', () => {
-            const inp = document.getElementById(btn.dataset.target);
-            const min = parseInt(inp.min) || 0;
-            const max = parseInt(inp.max) || 99;
-            const cur = parseInt(inp.value) || 0;
-            inp.value = Math.min(max, Math.max(min, cur + parseInt(btn.dataset.delta)));
-            inp.dispatchEvent(new Event('input'));
-          });
-        });
-        logBtn.addEventListener('click', handleLogSet);
         return;
       }
 
@@ -3178,22 +3175,6 @@
 
     function handleLogSet() {
       const exId = SS.exercises[SS.currentExIdx];
-
-      if (SS.isAccessory) {
-        const reps = parseInt(document.getElementById('input-reps').value);
-        if (isNaN(reps) || reps < 1) return;
-        if (!SS.loggedSets[exId]) SS.loggedSets[exId] = [];
-        SS.loggedSets[exId].push({ reps });
-        const count = SS.loggedSets[exId].length;
-        const maxSets = exId === 'accessory_chinups' ? 5 : 3;
-        SS.currentSetNum = count >= maxSets ? maxSets : count + 1;
-        if (count >= maxSets) SS.view = 'exercise_complete';
-        persistSS();
-        renderSessionScreen();
-        // Auto-refocus reps for next set
-        if (SS.view === 'logging') setTimeout(() => { document.getElementById('input-reps')?.focus(); }, 80);
-        return;
-      }
 
       const reps = parseInt(document.getElementById('input-reps').value);
       const rir = parseInt(document.getElementById('input-rir').value);
@@ -3424,21 +3405,17 @@
       _activateScreen('s-today');
     }
 
-    function saveAccessorySession() {
+    function saveAccessorySession(notes) {
       const data = loadData();
       const exId = SS.exercises[0];
       const today = SS.sessionDate;
-      const weight = SS.accessoryWeight || 0;
       data.exercises[exId].sessions.push({
         date: today,
-        sets: SS.loggedSets[exId] || [],
-        weight,
-        actualWeight: weight,
-        sessionType: 'accessory',
-        wasUnscheduled: false
+        notes: notes || ''
       });
       data.profile.accessoryStreak = (data.profile.accessoryStreak || 0) + 1;
       saveData(data);
+      clearPersistedSS();
       _activateScreen('s-today');
     }
 
@@ -3516,23 +3493,7 @@
       renderSessionScreen();
     }
 
-    function buildAccessorySetInputHTML() {
-      return `
-    <div class="card" style="margin-bottom:12px;">
-      <div style="font-size:11px;color:var(--muted);letter-spacing:0.05em;text-transform:uppercase;margin-bottom:16px;">Max effort — as many reps as you can</div>
-      <div style="display:flex;justify-content:center;">
-        <div class="set-field-wrap">
-          <div class="set-field-label">REPS</div>
-          <div style="display:flex;align-items:center;gap:6px;">
-            <button class="stepper-btn" data-target="input-reps" data-delta="-1">−</button>
-            <input type="number" class="set-number-input" id="input-reps" inputmode="numeric" min="1" max="100" placeholder="0" autocomplete="off" style="width:120px;"/>
-            <button class="stepper-btn" data-target="input-reps" data-delta="1">+</button>
-          </div>
-        </div>
-      </div>
-      <button class="btn btn-primary" id="btn-log-set" disabled style="margin-top:16px;">LOG SET</button>
-    </div>`;
-    }
+
 
     // ═══════════════════════════════════════════════════════════════
     // HISTORY SCREEN
@@ -3545,12 +3506,17 @@
       const map = {};
       Object.entries(data.exercises).forEach(([exId, ex]) => {
         (ex.sessions || []).forEach(sess => {
-          const key = `${sess.date}__${sess.sessionType}`;
-          if (!map[key]) map[key] = { date: sess.date, sessionType: sess.sessionType, wasUnscheduled: sess.wasUnscheduled || false, notes: sess.notes || '', exercises: [] };
+          const sType = (exId === 'accessory_pullups' || exId === 'accessory_chinups') ? 'accessory' : sess.sessionType;
+          const key = `${sess.date}__${sType}`;
+          if (!map[key]) map[key] = { date: sess.date, sessionType: sType, wasUnscheduled: sess.wasUnscheduled || false, notes: sess.notes || '', exercises: [] };
           else if (!map[key].notes && sess.notes) map[key].notes = sess.notes;
           map[key].exercises.push({
-            id: exId, name: ex.name, actualWeight: sess.actualWeight, sets: sess.sets,
-            hadPR: !!(ex.pr && ex.pr.date === sess.date)
+            id: exId,
+            name: ex.name,
+            actualWeight: sess.actualWeight,
+            sets: sess.sets,
+            hadPR: !!(ex.pr && ex.pr.date === sess.date),
+            notes: sess.notes
           });
         });
       });
@@ -3586,7 +3552,11 @@
         const { day, date } = fmtDate(sess.date);
         const typeCls = sess.wasUnscheduled ? 'unscheduled' : sess.sessionType === 'heavy' ? 'heavy' : sess.sessionType === 'accessory' ? 'accessory' : 'assistance';
         const typeText = sess.wasUnscheduled ? 'Extra' : sess.sessionType === 'heavy' ? 'Heavy' : sess.sessionType === 'accessory' ? 'Accessory' : 'Assistance';
-        const exSummary = sess.exercises.map(e => `${e.name.split(' ').pop()} ${e.actualWeight > 0 ? e.actualWeight + 'kg' : 'BW'}`).join(' • ');
+        const exSummary = sess.exercises.map(e => {
+          const isAccessory = (e.id === 'accessory_pullups' || e.id === 'accessory_chinups');
+          if (isAccessory) return e.name.split(' ').pop();
+          return `${e.name.split(' ').pop()} ${e.actualWeight > 0 ? e.actualWeight + 'kg' : 'BW'}`;
+        }).join(' • ');
         const anyPR = sess.exercises.some(e => e.hadPR);
         const isToday = sess.date === new Date().toISOString().split('T')[0];
         // Total volume: sum of weight×reps across all sets across all exercises (skip bodyweight sets)
@@ -3602,6 +3572,15 @@
 
         // Expanded detail
         const exDetails = sess.exercises.map(e => {
+          const isAccessory = (e.id === 'accessory_pullups' || e.id === 'accessory_chinups');
+          if (isAccessory) {
+            const noteText = e.notes ? `<div class="history-set-row" style="color:var(--muted);font-style:italic;">Notes: ${e.notes}</div>` : '';
+            return `
+        <div class="history-ex-section">
+          <div class="history-ex-name">${e.name}</div>
+          ${noteText}
+        </div>`;
+          }
           const setRows = (e.sets || []).map((s, i) => `<div class="history-set-row">Set ${i + 1}: ${s.reps} reps${s.rir !== undefined ? ', RIR ' + s.rir : ''}</div>`).join('');
           return `
         <div class="history-ex-section">
