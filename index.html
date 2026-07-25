@@ -1976,8 +1976,7 @@
           <div style="font-size:22px;font-weight:900;color:var(--text);letter-spacing:-0.01em;margin-bottom:14px;">
             HISTORY</div>
           <div class="filter-bar" id="history-filter-bar">
-            <button class="filter-tab active" data-filter="all">All</button>
-            <button class="filter-tab" data-filter="heavy">Heavy</button>
+            <button class="filter-tab active" data-filter="heavy">Heavy</button>
             <button class="filter-tab" data-filter="assistance">Assistance</button>
             <button class="filter-tab" data-filter="unscheduled">Extra</button>
             <button class="filter-tab" data-filter="accessory">Accessory</button>
@@ -3336,7 +3335,7 @@
 
         ex.sessions.push({
           date: today, sets, actualWeight: ex.currentWeight,
-          sessionType: SS.exSessionTypes[id] || SS.sessionType,
+          sessionType: SS.sessionType,
           wasUnscheduled: SS.wasUnscheduled, notes
         });
 
@@ -3539,7 +3538,7 @@
     // HISTORY SCREEN
     // ═══════════════════════════════════════════════════════════════
 
-    let historyFilter = 'all';
+    let historyFilter = 'heavy';
 
     function buildSessionHistory() {
       const data = loadData();
@@ -3567,9 +3566,7 @@
 
     function renderHistoryScreen() {
       const sessions = buildSessionHistory();
-      const filtered = historyFilter === 'all'
-        ? sessions
-        : sessions.filter(s => {
+      const filtered = sessions.filter(s => {
           if (historyFilter === 'unscheduled') return s.wasUnscheduled;
           if (historyFilter === 'accessory') return s.sessionType === 'accessory';
           return s.sessionType === historyFilter && !s.wasUnscheduled;
