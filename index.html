@@ -2593,6 +2593,12 @@
       updateWeightDisplays();
     }
 
+    function detectPhaseOnboarding(exerciseId, weight, reps) {
+      const phase = detectPhaseFromReps(exerciseId, weight, reps);
+      if (phase === 'intermediate_s1' || phase === 'intermediate_s2') return 'advanced_novice';
+      return phase;
+    }
+
     function updateWeightDisplays() {
       ['dips', 'pullups', 'chinups'].forEach(ex => {
         const inp = document.getElementById(`input-${ex}`);
@@ -2644,9 +2650,9 @@
       const data = getDefaultData();
       data.profile.onboardingComplete = true;
       data.profile.setupDate = new Date().toISOString();
-      data.exercises.dips.phase = detectPhaseFromReps('dips', dv, dr); data.exercises.dips.currentWeight = dv; data.exercises.dips.startingWeight = dv; data.exercises.dips.sixRM = d6; data.exercises.dips.oneRM = d1;
-      data.exercises.pullups.phase = detectPhaseFromReps('pullups', pv, pr); data.exercises.pullups.currentWeight = pv; data.exercises.pullups.startingWeight = pv; data.exercises.pullups.sixRM = p6; data.exercises.pullups.oneRM = p1;
-      data.exercises.chinups.phase = detectPhaseFromReps('chinups', cv, cr); data.exercises.chinups.currentWeight = cv; data.exercises.chinups.startingWeight = cv; data.exercises.chinups.sixRM = c6; data.exercises.chinups.oneRM = c1;
+      data.exercises.dips.phase = detectPhaseOnboarding('dips', dv, dr); data.exercises.dips.currentWeight = dv; data.exercises.dips.startingWeight = dv; data.exercises.dips.sixRM = d6; data.exercises.dips.oneRM = d1;
+      data.exercises.pullups.phase = detectPhaseOnboarding('pullups', pv, pr); data.exercises.pullups.currentWeight = pv; data.exercises.pullups.startingWeight = pv; data.exercises.pullups.sixRM = p6; data.exercises.pullups.oneRM = p1;
+      data.exercises.chinups.phase = detectPhaseOnboarding('chinups', cv, cr); data.exercises.chinups.currentWeight = cv; data.exercises.chinups.startingWeight = cv; data.exercises.chinups.sixRM = c6; data.exercises.chinups.oneRM = c1;
       const pd = calculateStartingWeight('paused_dips', null, dv);
       data.exercises.paused_dips.currentWeight = pd; data.exercises.paused_dips.startingWeight = pd;
       saveData(data);
