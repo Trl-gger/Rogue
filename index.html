@@ -1976,10 +1976,9 @@
           <div style="font-size:22px;font-weight:900;color:var(--text);letter-spacing:-0.01em;margin-bottom:14px;">
             HISTORY</div>
           <div class="filter-bar" id="history-filter-bar">
+            <button class="filter-tab" data-filter="all">All</button>
             <button class="filter-tab active" data-filter="heavy">Heavy</button>
             <button class="filter-tab" data-filter="assistance">Assistance</button>
-            <button class="filter-tab" data-filter="unscheduled">Extra</button>
-            <button class="filter-tab" data-filter="accessory">Accessory</button>
           </div>
         </div>
         <div id="history-list"></div>
@@ -2176,7 +2175,7 @@
     // ENGINE — full implementation
     // ═══════════════════════════════════════════════════════════════
 
-    const APP_VERSION = '1.1.8'; // Bump this on every deployment to invalidate the service worker cache
+    const APP_VERSION = '1.2.2'; // Bump this on every deployment to invalidate the service worker cache
 
     function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
@@ -2777,7 +2776,7 @@
 
         let previewHTML = '';
         if (isDone && nextSessionType) {
-          const nextExIds = nextSessionType === 'heavy' ? ['dips', 'pullups'] : ['paused_dips', 'chinups'];
+          const nextExIds = nextSessionType === 'heavy' ? ['pullups', 'dips'] : ['chinups', 'paused_dips'];
           const nextBadge = nextSessionType === 'heavy' ? 'HEAVY DAY' : 'ASSISTANCE DAY';
           const nextBadgeCls = nextSessionType === 'heavy' ? 'heavy' : 'assist';
 
@@ -2829,12 +2828,8 @@
         return;
       }
 
-      // Exercise order: load persisted preference
-      const orderKey = sessionType;
-      if (!data.profile.exerciseOrder) data.profile.exerciseOrder = {};
-      let isReversed = !!data.profile.exerciseOrder[orderKey];
-      let exercises = sessionType === 'heavy' ? ['dips', 'pullups'] : ['paused_dips', 'chinups'];
-      if (isReversed) exercises = [...exercises].reverse();
+      // Canonical exercise order: Pull-ups → Dips (heavy), Chin-ups → Paused Dips (assistance)
+      const exercises = sessionType === 'heavy' ? ['pullups', 'dips'] : ['chinups', 'paused_dips'];
 
       const badgeText = sessionType === 'heavy' ? 'HEAVY DAY' : 'ASSISTANCE DAY';
       const badgeCls = sessionType === 'heavy' ? 'heavy' : 'assist';
@@ -2908,7 +2903,7 @@
         } else {
           nextSessionType = 'heavy'; nextDayName = 'Friday';
         }
-        const nextExIds = nextSessionType === 'heavy' ? ['dips', 'pullups'] : ['paused_dips', 'chinups'];
+        const nextExIds = nextSessionType === 'heavy' ? ['pullups', 'dips'] : ['chinups', 'paused_dips'];
         const nextBadge = nextSessionType === 'heavy' ? 'HEAVY DAY' : 'ASSISTANCE DAY';
         const nextBadgeCls = nextSessionType === 'heavy' ? 'heavy' : 'assist';
 
@@ -2963,38 +2958,9 @@
         return;
       }
 
-      // Build CTA: order toggle + start button
-      function buildCTA() {
-        const label1 = data.exercises[exercises[0]].name.split(' ').pop();
-        const label2 = data.exercises[exercises[1]].name.split(' ').pop();
-        cta.innerHTML = `
-      <div style="display:flex;align-items:center;justify-content:center;margin-bottom:10px;">
-        <button id="btn-swap-order" style="background:none;border:none;color:var(--muted);font-family:inherit;font-size:12px;font-weight:700;letter-spacing:0.06em;cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 12px;border-radius:20px;border:1px solid var(--border);">
-          <span style="font-size:14px;">&#8597;</span> ${label1} → ${label2}
-        </button>
-      </div>
-      <button class="btn btn-primary" id="btn-start-session">START SESSION</button>`;
-        document.getElementById('btn-swap-order').addEventListener('click', () => {
-          isReversed = !isReversed;
-          exercises.reverse();
-          const d = loadData();
-          if (!d.profile.exerciseOrder) d.profile.exerciseOrder = {};
-          d.profile.exerciseOrder[orderKey] = isReversed;
-          saveData(d);
-          content.innerHTML = buildCards();
-          const missed2 = getMissedBanners(exercises, d);
-          if (missed2.length) {
-            let mb = `<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">`;
-            missed2.forEach(m => { mb += `<div class="missed-banner"><div class="missed-text">Last <strong>${m.name}</strong> session was ${m.days} days ago</div><button class="dismiss-btn">×</button></div>`; });
-            mb += `</div>`;
-            content.innerHTML += mb;
-          }
-          content.querySelectorAll('.dismiss-btn').forEach(b => b.addEventListener('click', () => b.closest('.missed-banner').remove()));
-          buildCTA();
-        });
-        document.getElementById('btn-start-session').addEventListener('click', () => startSession(exercises, sessionType, day));
-      }
-      buildCTA();
+      // Simple START SESSION CTA (no swap button)
+      cta.innerHTML = `<button class="btn btn-primary" id="btn-start-session">START SESSION</button>`;
+      document.getElementById('btn-start-session').addEventListener('click', () => startSession(exercises, sessionType, day));
     }
 
     function getMissedBanners(exIds, data) {
@@ -3408,6 +3374,27 @@
         if (SS.prResults[id]?.isPR) ex.pr = SS.prResults[id].newPR;
       });
 
+      // Recalculate oneRM and sixRM from this session's best set so the Progress tab
+      // stays current as the user progresses beyond their onboarding weight.
+      // Uses actualWeight (the weight the session was performed at, before the increment).
+      // paused_dips is skipped — it has no independent 1RM in the Progress tab.
+      SS.exercises.forEach(id => {
+        if (id === 'paused_dips') return;
+        const ex = data.exercises[id];
+        const sess = ex.sessions[ex.sessions.length - 1]; // the record just pushed
+        const sets = SS.loggedSets[id] || [];
+        if (!sets.length || !sess) return;
+        const w = sess.actualWeight; // weight actually trained at, not the next prescribed weight
+        if (!w) return;
+        const bestReps = sets.reduce((max, s) => s.reps > max ? s.reps : max, 0);
+        if (!bestReps) return;
+        const newOneRM = roundToHalf(w * (1 + bestReps / 30));
+        const newSixRM = roundToHalf(newOneRM / 1.2);
+        // Only update if higher — a single hard session never erases a genuine lifetime best
+        if (newOneRM > (ex.oneRM || 0)) ex.oneRM = newOneRM;
+        if (newSixRM > (ex.sixRM || 0)) ex.sixRM = newSixRM;
+      });
+
       // After heavy sessions: accumulate dips increment into paused_dips.pendingDipsIncrement
       // This is applied (and reset) at the START of the next Wednesday session
       if (SS.exercises.includes('dips')) {
@@ -3481,31 +3468,49 @@
     // ═══════════════════════════════════════════════════════════════
 
     function renderExSelectScreen() {
-      const data = loadData();
+      // Fix 4: replaced per-exercise picker with two day-type options
       const grid = document.getElementById('ex-select-grid');
-      const EX_DAYS = { dips: 'Mon & Fri', pullups: 'Mon & Fri', paused_dips: 'Wednesday', chinups: 'Wednesday' };
-      grid.innerHTML = Object.keys(EX_DAYS).map(id => {
-        const ex = data.exercises[id];
-        return `<button class="ex-select-card" data-ex="${id}"><div class="ex-select-name">${ex.name}</div><div class="ex-select-day">${EX_DAYS[id]}</div></button>`;
-      }).join('');
-      grid.querySelectorAll('[data-ex]').forEach(btn => {
-        btn.addEventListener('click', () => startUnscheduledSession(btn.dataset.ex));
-      });
+      const data = loadData();
+      const heavyEx = ['pullups', 'dips'];
+      const assistEx = ['chinups', 'paused_dips'];
+      const heavyNames = heavyEx.map(id => data.exercises[id].name).join(' + ');
+      const assistNames = assistEx.map(id => data.exercises[id].name).join(' + ');
+      grid.innerHTML = `
+        <button class="ex-select-card" id="btn-unsch-heavy">
+          <div class="ex-select-name">Heavy Day</div>
+          <div class="ex-select-day">${heavyNames}</div>
+        </button>
+        <button class="ex-select-card" id="btn-unsch-assist">
+          <div class="ex-select-name">Assistance Day</div>
+          <div class="ex-select-day">${assistNames}</div>
+        </button>`;
+      document.getElementById('btn-unsch-heavy').addEventListener('click', () => startUnscheduledSession(heavyEx, 'heavy'));
+      document.getElementById('btn-unsch-assist').addEventListener('click', () => startUnscheduledSession(assistEx, 'assistance'));
     }
 
-    function startUnscheduledSession(exId) {
+    function startUnscheduledSession(exercises, sessionType) {
+      // exercises is an array (e.g. ['dips','pullups']); sessionType is 'heavy' or 'assistance'.
+      // wasUnscheduled is kept as a data flag for internal use; the history renderer now ignores it
+      // and derives the display type from sessionType instead.
       const data = loadData();
-      // Use the exercise's real sessionType so getNextPrescription fires the correct increment table.
-      // wasUnscheduled:true is a logging flag only and must never block weight updates.
-      const exSessionType = data.exercises[exId].sessionType || 'heavy';
+      const day = new Date().getDay();
       Object.assign(SS, {
-        exercises: [exId], sessionType: 'unscheduled', wasUnscheduled: true, isAccessory: false,
+        exercises, sessionType, wasUnscheduled: true, isAccessory: false,
         currentExIdx: 0, currentSetNum: 1, loggedSets: {}, prescriptions: {},
         prResults: {}, notes: '', view: 'logging',
-        sessionDate: new Date().toISOString().split('T')[0],
-        exSessionTypes: { [exId]: exSessionType }
+        sessionDate: new Date().toISOString().split('T')[0]
+      });
+      SS.exSessionTypes = {};
+      exercises.forEach(id => {
+        const phase = data.exercises[id].phase;
+        if (id === 'chinups') {
+          SS.exSessionTypes[id] = 'heavy';
+        } else {
+          SS.exSessionTypes[id] = (phase === 'intermediate_s1' && sessionType === 'heavy' && day === 5) ? 'pr' : sessionType;
+        }
       });
       showScreen('s-session');
+      persistSS();
       renderSessionScreen();
     }
 
@@ -3553,15 +3558,17 @@
       const data = loadData();
       const map = {};
       Object.entries(data.exercises).forEach(([exId, ex]) => {
+        // Fix 2: accessory exercises are excluded from History entirely
+        if (exId === 'accessory_pullups' || exId === 'accessory_chinups') return;
         (ex.sessions || []).forEach(sess => {
           let sType = sess.sessionType;
-          if (exId === 'accessory_pullups' || exId === 'accessory_chinups') {
-            sType = 'accessory';
-          } else if (sType === 'pr') {
-            sType = 'heavy';
+          if (sType === 'pr') sType = 'heavy';
+          // Fix 3: unscheduled sessions use real type derived from exercises
+          if (sType === 'unscheduled') {
+            sType = (exId === 'dips' || exId === 'pullups') ? 'heavy' : 'assistance';
           }
           const key = `${sess.date}__${sType}`;
-          if (!map[key]) map[key] = { date: sess.date, sessionType: sType, wasUnscheduled: sess.wasUnscheduled || false, notes: sess.notes || '', exercises: [] };
+          if (!map[key]) map[key] = { date: sess.date, sessionType: sType, notes: sess.notes || '', exercises: [] };
           else if (!map[key].notes && sess.notes) map[key].notes = sess.notes;
           map[key].exercises.push({
             id: exId, name: ex.name, actualWeight: sess.actualWeight, sets: sess.sets,
@@ -3583,9 +3590,8 @@
     function renderHistoryScreen() {
       const sessions = buildSessionHistory();
       const filtered = sessions.filter(s => {
-        if (historyFilter === 'unscheduled') return s.wasUnscheduled;
-        if (historyFilter === 'accessory') return s.sessionType === 'accessory';
-        return s.sessionType === historyFilter && !s.wasUnscheduled;
+        if (historyFilter === 'all') return true;
+        return s.sessionType === historyFilter;
       });
 
       const list = document.getElementById('history-list');
@@ -3600,8 +3606,8 @@
       list.innerHTML = '';
       filtered.forEach((sess, idx) => {
         const { day, date } = fmtDate(sess.date);
-        const typeCls = sess.wasUnscheduled ? 'unscheduled' : sess.sessionType === 'heavy' ? 'heavy' : sess.sessionType === 'accessory' ? 'accessory' : 'assistance';
-        const typeText = sess.wasUnscheduled ? 'Extra' : sess.sessionType === 'heavy' ? 'Heavy' : sess.sessionType === 'accessory' ? 'Accessory' : 'Assistance';
+        const typeCls = sess.sessionType === 'heavy' ? 'heavy' : 'assistance';
+        const typeText = sess.sessionType === 'heavy' ? 'Heavy' : 'Assistance';
         const exSummary = sess.exercises.map(e => {
           const isAccessory = (e.id === 'accessory_pullups' || e.id === 'accessory_chinups');
           if (isAccessory) return e.name.split(' ').pop();
@@ -3646,7 +3652,7 @@
         <div class="history-notes-text">${sess.notes}</div>
       </div>` : '';
 
-        const unschBadge = sess.wasUnscheduled ? `<span class="session-type-badge unscheduled" style="margin-left:8px;">Unscheduled</span>` : '';
+
 
         card.innerHTML = `
       <div class="history-card-head">
@@ -3663,7 +3669,6 @@
       <div class="history-card-body">
         ${exDetails}
         ${notesHTML}
-        ${unschBadge}
       </div>`;
 
         card.querySelector('.history-card-head').addEventListener('click', () => {
@@ -4033,13 +4038,7 @@
       hideModal('modal-abandon');
       clearPersistedSS();
       SS.exercises = []; state.navHistory = [];
-      if (SS.wasUnscheduled) {
-        // Return to exercise selector so the user can pick a different movement
-        renderExSelectScreen();
-        _activateScreen('s-ex-select');
-      } else {
-        _activateScreen('s-today');
-      }
+      _activateScreen('s-today');
     });
 
     // — Complete —
@@ -4077,7 +4076,10 @@
     });
 
     // — Exercise select —
-    document.getElementById('ex-select-back').addEventListener('click', goBack);
+    document.getElementById('ex-select-back').addEventListener('click', () => {
+      state.navHistory = [];
+      _activateScreen('s-today');
+    });
 
     // — Bottom nav tabs —
     document.querySelectorAll('.nav-tab[data-screen]').forEach(btn => {
