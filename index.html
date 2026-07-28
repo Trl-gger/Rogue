@@ -1987,9 +1987,9 @@
           <div style="font-size:22px;font-weight:900;color:var(--text);letter-spacing:-0.01em;margin-bottom:14px;">
             HISTORY</div>
           <div class="filter-bar" id="history-filter-bar">
-            <button class="filter-tab" data-filter="all">All</button>
-            <button class="filter-tab active" data-filter="heavy">Heavy</button>
-            <button class="filter-tab" data-filter="assistance">Assistance</button>
+            <button class="filter-tab active" data-filter="all">ALL</button>
+            <button class="filter-tab" data-filter="heavy">HEAVY</button>
+            <button class="filter-tab" data-filter="assistance">ASSISTANCE</button>
           </div>
         </div>
         <div id="history-list"></div>
@@ -2200,7 +2200,7 @@
     // ENGINE — full implementation
     // ═══════════════════════════════════════════════════════════════
 
-    const APP_VERSION = '1.2.5'; // Bump this on every deployment to invalidate the service worker cache
+    const APP_VERSION = '1.2.6'; // Bump this on every deployment to invalidate the service worker cache
 
     function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
@@ -3566,21 +3566,17 @@
     // HISTORY SCREEN
     // ═══════════════════════════════════════════════════════════════
 
-    let historyFilter = 'heavy';
+    let historyFilter = 'all';
 
     function buildSessionHistory() {
       const data = loadData();
       const map = {};
+      const EX_ORDER = { pullups: 1, dips: 2, chinups: 1, paused_dips: 2 };
       Object.entries(data.exercises).forEach(([exId, ex]) => {
-        // Fix 2: accessory exercises are excluded from History entirely
+        // Exclude accessory exercises from History entirely
         if (exId === 'accessory_pullups' || exId === 'accessory_chinups') return;
+        const sType = (exId === 'dips' || exId === 'pullups') ? 'heavy' : 'assistance';
         (ex.sessions || []).forEach(sess => {
-          let sType = sess.sessionType;
-          if (sType === 'pr') sType = 'heavy';
-          // Fix 3: unscheduled sessions use real type derived from exercises
-          if (sType === 'unscheduled') {
-            sType = (exId === 'dips' || exId === 'pullups') ? 'heavy' : 'assistance';
-          }
           const key = `${sess.date}__${sType}`;
           if (!map[key]) map[key] = { date: sess.date, sessionType: sType, notes: sess.notes || '', exercises: [] };
           else if (!map[key].notes && sess.notes) map[key].notes = sess.notes;
@@ -3591,7 +3587,11 @@
           });
         });
       });
-      return Object.values(map).sort((a, b) => b.date.localeCompare(a.date));
+      const list = Object.values(map).sort((a, b) => b.date.localeCompare(a.date));
+      list.forEach(sess => {
+        sess.exercises.sort((a, b) => (EX_ORDER[a.id] || 99) - (EX_ORDER[b.id] || 99));
+      });
+      return list;
     }
 
     function fmtDate(dateStr) {
