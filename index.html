@@ -1746,6 +1746,17 @@
           <div class="weight-card">
             <div class="weight-card-header">
               <div>
+                <div class="weight-card-title">Bodyweight</div>
+                <div class="weight-card-sub">Your current bodyweight (kg)</div>
+              </div>
+            </div>
+            <div class="input-hint">Bodyweight (kg)</div>
+            <input class="input-field" id="input-bodyweight" type="text" inputmode="decimal" min="30" max="300" step="0.5"
+              placeholder="e.g. 75" autocomplete="off" />
+          </div>
+          <div class="weight-card">
+            <div class="weight-card-header">
+              <div>
                 <div class="weight-card-title">Weighted Dips</div>
                 <div class="weight-card-sub">Mon &amp; Fri — Heavy Day</div>
               </div>
@@ -1759,8 +1770,8 @@
               placeholder="e.g. 8" autocomplete="off" />
             <div class="input-hint" style="margin-top:10px;color:#444;">Estimated 1RM <span
                 style="color:#333;">(optional)</span></div>
-            <input class="input-field" id="input-dips-1rm" type="text" inputmode="decimal" min="0" max="300"
-              step="0.5" placeholder="auto-calculated if blank" autocomplete="off" style="opacity:0.7;" />
+            <input class="input-field" id="input-dips-1rm" type="text" inputmode="decimal" min="0" max="300" step="0.5"
+              placeholder="auto-calculated if blank" autocomplete="off" style="opacity:0.7;" />
           </div>
           <div class="weight-card">
             <div class="weight-card-header">
@@ -1976,9 +1987,9 @@
           <div style="font-size:22px;font-weight:900;color:var(--text);letter-spacing:-0.01em;margin-bottom:14px;">
             HISTORY</div>
           <div class="filter-bar" id="history-filter-bar">
-            <button class="filter-tab active" data-filter="all">ALL</button>
-            <button class="filter-tab" data-filter="heavy">HEAVY</button>
-            <button class="filter-tab" data-filter="assistance">ASSISTANCE</button>
+            <button class="filter-tab" data-filter="all">All</button>
+            <button class="filter-tab active" data-filter="heavy">Heavy</button>
+            <button class="filter-tab" data-filter="assistance">Assistance</button>
           </div>
         </div>
         <div id="history-list"></div>
@@ -2106,6 +2117,20 @@
     </div>
   </div>
 
+  <!-- Modal: Settings — Bodyweight Adjust -->
+  <div class="modal-overlay" id="modal-bodyweight-adjust">
+    <div class="modal-card">
+      <div class="modal-title">Update Bodyweight</div>
+      <div class="modal-body" style="margin-bottom:12px;font-size:13px;">Current: <strong id="mbw-current">—</strong></div>
+      <input type="text" class="set-number-input" id="mbw-input" inputmode="decimal"
+        style="width:100%;margin-bottom:16px;font-size:24px;text-align:center;" placeholder="0" step="0.5" />
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="mbw-cancel">Cancel</button>
+        <button class="btn btn-primary" id="mbw-save">Save</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal: Settings — Deload Confirm -->
   <div class="modal-overlay" id="modal-deload">
     <div class="modal-card">
@@ -2175,7 +2200,7 @@
     // ENGINE — full implementation
     // ═══════════════════════════════════════════════════════════════
 
-    const APP_VERSION = '1.2.4'; // Bump this on every deployment to invalidate the service worker cache
+    const APP_VERSION = '1.2.5'; // Bump this on every deployment to invalidate the service worker cache
 
     function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
@@ -2382,7 +2407,7 @@
 
     function getDefaultData() {
       return {
-        profile: { onboardingComplete: false, setupDate: null, exportReminderCount: 0, accessoryStreak: 0, accessoryStreakPaused: false, lastAccessoryStreakCheckWeek: null },
+        profile: { onboardingComplete: false, setupDate: null, exportReminderCount: 0, accessoryStreak: 0, accessoryStreakPaused: false, lastAccessoryStreakCheckWeek: null, bodyweight: null, bodyweightHistory: [] },
         exercises: {
           dips: { name: 'Weighted Dips', sessionDays: [1, 5], sessionType: 'heavy', phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, deloadCount: 0, consecutiveFailedDeloads: 0, consecutiveProgressCount: 0, isInPostDeloadTracking: false, lastDeloadDate: null, pr: null, sessions: [] },
           paused_dips: { name: 'Paused Dips', sessionDays: [3], sessionType: 'assistance', followsExercise: 'dips', currentWeight: 0, startingWeight: 0, pendingDipsIncrement: 0, sessions: [] },
@@ -2416,6 +2441,8 @@
         if (data.profile.accessoryStreak === undefined) data.profile.accessoryStreak = 0;
         if (data.profile.accessoryStreakPaused === undefined) data.profile.accessoryStreakPaused = false;
         if (data.profile.lastAccessoryStreakCheckWeek === undefined) data.profile.lastAccessoryStreakCheckWeek = null;
+        if (data.profile.bodyweight === undefined) data.profile.bodyweight = null;
+        if (!data.profile.bodyweightHistory) data.profile.bodyweightHistory = [];
         // Migrate: add stall detection fields for independent exercises
         INDEPENDENT_EX.forEach(id => {
           const ex = data.exercises[id];
@@ -2452,59 +2479,7 @@
     const ALL_EX_IDS = ['dips', 'pullups', 'paused_dips', 'chinups'];
 
 
-    // ═══════════════════════════════════════════════════════════════
-    // RANKING SYSTEM
-    // ═══════════════════════════════════════════════════════════════
 
-    const RANK_NAMES = ['Rookie', 'Grinder', 'Competitor', 'Warrior', 'Gladiator', 'Champion', 'Elite', 'Legend', 'Titan', 'Olympian'];
-
-    const RANK_THRESHOLDS = {
-      dips: [0, 20, 40, 60, 72, 84, 100, 116, 136, 160],
-      pullups: [0, 8, 20, 35, 48, 60, 72, 84, 96, 110],
-      chinups: [0, 10, 25, 40, 54, 68, 80, 94, 108, 122]
-    };
-
-    const RANK_COLORS = {
-      Rookie: '#555', Grinder: '#555',
-      Competitor: '#0066cc', Warrior: '#0066cc',
-      Gladiator: '#ff6600', Champion: '#ff6600',
-      Elite: '#ffcc00', Legend: '#ffcc00',
-      Titan: '#cc0000', Olympian: '#cc0000'
-    };
-
-    function calculateRank(oneRM, sixRM, exerciseCategory) {
-      const score = (oneRM * 0.6) + (sixRM * 0.4);
-      const thresholds = RANK_THRESHOLDS[exerciseCategory] || RANK_THRESHOLDS.dips;
-      let rankIdx = 0;
-      for (let i = 0; i < thresholds.length; i++) {
-        if (score >= thresholds[i]) rankIdx = i;
-        else break;
-      }
-      const rank = RANK_NAMES[rankIdx];
-      return { rank, score: roundToHalf(score), color: RANK_COLORS[rank] };
-    }
-
-    function getCombinedRank(data) {
-      const exMap = { dips: 'dips', pullups: 'pullups', chinups: 'chinups' };
-      let totalScore = 0; let count = 0;
-      for (const [cat, exId] of Object.entries(exMap)) {
-        const ex = data.exercises[exId];
-        if (!ex || !ex.sixRM) continue;
-        const oneRM = ex.oneRM || ex.sixRM * 1.2;
-        const { score } = calculateRank(oneRM, ex.sixRM, cat);
-        totalScore += score; count++;
-      }
-      if (!count) return null;
-      const avgScore = totalScore / count;
-      const thresholds = RANK_THRESHOLDS.dips;
-      let rankIdx = 0;
-      for (let i = 0; i < thresholds.length; i++) {
-        if (avgScore >= thresholds[i]) rankIdx = i;
-        else break;
-      }
-      const rank = RANK_NAMES[rankIdx];
-      return { rank, score: roundToHalf(avgScore), color: RANK_COLORS[rank] };
-    }
 
     // ═══════════════════════════════════════════════════════════════
     // ONBOARDING STATE
@@ -2583,6 +2558,8 @@
 
     function renderWeightsScreen() {
       document.getElementById('weights-note').style.display = 'none';
+      const bwInp = document.getElementById('input-bodyweight');
+      if (bwInp && state.weights.bodyweight) bwInp.value = state.weights.bodyweight;
       ['dips', 'pullups', 'chinups'].forEach(ex => {
         const inp = document.getElementById(`input-${ex}`);
         if (inp && state.weights[ex]) inp.value = state.weights[ex];
@@ -2599,6 +2576,11 @@
     }
 
     function updateWeightDisplays() {
+      const bwInp = document.getElementById('input-bodyweight');
+      if (bwInp) state.weights.bodyweight = bwInp.value;
+      const bwVal = parseWeight(bwInp?.value);
+      const bwValid = bwInp?.value.trim() !== '' && !isNaN(bwVal) && bwVal > 0;
+
       ['dips', 'pullups', 'chinups'].forEach(ex => {
         const inp = document.getElementById(`input-${ex}`);
         const repsInp = document.getElementById(`input-${ex}-reps`);
@@ -2623,7 +2605,7 @@
       const dv = parseWeight(document.getElementById('input-dips')?.value) || 0;
       const dHas = document.getElementById('input-dips')?.value.trim() !== '';
       document.getElementById('sw-paused').textContent = dHas && dv >= 0 ? `${calculateStartingWeight('paused_dips', null, dv)}kg` : '—';
-      const all = ['dips', 'pullups', 'chinups'].every(ex => {
+      const all = bwValid && ['dips', 'pullups', 'chinups'].every(ex => {
         const v = document.getElementById(`input-${ex}`)?.value.trim();
         const r = document.getElementById(`input-${ex}-reps`)?.value.trim();
         return v !== '' && parseWeight(v) >= 0 && r !== '' && parseInt(r) >= 1;
@@ -2649,6 +2631,12 @@
       const data = getDefaultData();
       data.profile.onboardingComplete = true;
       data.profile.setupDate = new Date().toISOString();
+      const bw = parseWeight(state.weights.bodyweight) || 0;
+      if (bw > 0) {
+        data.profile.bodyweight = bw;
+        if (!data.profile.bodyweightHistory) data.profile.bodyweightHistory = [];
+        data.profile.bodyweightHistory.push({ date: new Date().toISOString().split('T')[0], weight: bw });
+      }
       data.exercises.dips.phase = detectPhaseOnboarding('dips', dv, dr); data.exercises.dips.currentWeight = dv; data.exercises.dips.startingWeight = dv; data.exercises.dips.sixRM = d6; data.exercises.dips.oneRM = d1;
       data.exercises.pullups.phase = detectPhaseOnboarding('pullups', pv, pr); data.exercises.pullups.currentWeight = pv; data.exercises.pullups.startingWeight = pv; data.exercises.pullups.sixRM = p6; data.exercises.pullups.oneRM = p1;
       data.exercises.chinups.phase = detectPhaseOnboarding('chinups', cv, cr); data.exercises.chinups.currentWeight = cv; data.exercises.chinups.startingWeight = cv; data.exercises.chinups.sixRM = c6; data.exercises.chinups.oneRM = c1;
@@ -2670,22 +2658,12 @@
       document.getElementById('today-day').textContent = DAYS[day].toUpperCase();
       document.getElementById('today-date').textContent = `${now.getDate()} ${MONTHS[now.getMonth()]} ${now.getFullYear()}`;
 
-      // Combined rank pill in header
-      const todayData = loadData();
-      if (todayData) {
-        const combined = getCombinedRank(todayData);
-        const rankEl = document.getElementById('today-rank-pill');
-        if (rankEl && combined) {
-          rankEl.textContent = combined.rank;
-          rankEl.style.background = combined.color;
-          rankEl.style.display = 'inline-block';
-        } else if (rankEl) { rankEl.style.display = 'none'; }
-      }
+      const data = loadData();
 
       // Streak display in header
       const streakEl = document.getElementById('today-streak-pill');
       if (streakEl) {
-        const streak = todayData?.profile?.accessoryStreak || 0;
+        const streak = data?.profile?.accessoryStreak || 0;
         if (streak > 0) {
           streakEl.textContent = `🔥 ${streak}`;
           streakEl.style.display = 'inline';
@@ -2699,9 +2677,43 @@
       else if (day === 3) sessionType = 'assistance';
       else sessionType = 'rest';
 
-      const data = loadData();
       const content = document.getElementById('today-content');
       const cta = document.getElementById('today-cta');
+
+      // Monthly Bodyweight Nudge banner check (>30 days since last bodyweightHistory log or empty)
+      const bwHistory = data.profile.bodyweightHistory || [];
+      let showBwNudge = false;
+      if (!bwHistory.length) {
+        showBwNudge = true;
+      } else {
+        const lastEntry = bwHistory[bwHistory.length - 1];
+        const lastDate = new Date(lastEntry.date + 'T12:00:00');
+        const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+        if (diffDays > 30) showBwNudge = true;
+      }
+
+      let bwNudgeHTML = '';
+      if (showBwNudge && !state.bwNudgeDismissed) {
+        bwNudgeHTML = `
+      <div style="display:flex;align-items:center;justify-content:space-between;background:rgba(232,160,32,0.12);border:1px solid rgba(232,160,32,0.35);padding:12px 16px;border-radius:var(--radius-card);margin-bottom:16px;">
+        <div style="font-size:12px;color:var(--text);padding-right:8px;">
+          <strong>Bodyweight Nudge:</strong> It's been over 30 days since your last bodyweight log. <a href="#" id="link-bw-settings" style="color:var(--accent);text-decoration:underline;font-weight:700;">Update in Settings</a>
+        </div>
+        <button id="btn-bw-dismiss" style="background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;line-height:1;padding:0 4px;">×</button>
+      </div>`;
+      }
+
+      function bindBwNudgeEvents() {
+        document.getElementById('btn-bw-dismiss')?.addEventListener('click', () => {
+          state.bwNudgeDismissed = true;
+          renderTodayScreen();
+        });
+        document.getElementById('link-bw-settings')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          state.bwNudgeDismissed = true;
+          _activateScreen('s-settings');
+        });
+      }
 
       if (sessionType === 'rest') {
         const todayStr = new Date().toISOString().split('T')[0];
@@ -2812,19 +2824,20 @@
         </div>`;
         }
 
-        content.innerHTML = isDone
+        content.innerHTML = bwNudgeHTML + (isDone
           ? `
       ${previewHTML}
       <div style="margin-bottom:16px;">${dayBadgeHTML}</div>
       ${accessoryCardHTML}`
           : `
       <div style="margin-bottom:16px;">${dayBadgeHTML}</div>
-      ${accessoryCardHTML}`;
+      ${accessoryCardHTML}`);
         cta.innerHTML = `<button class="btn ${unscheduledBtnClass}" id="btn-unscheduled">Log Unscheduled Session</button>`;
         document.getElementById('btn-unscheduled').addEventListener('click', () => showScreen('s-ex-select'));
         if (accessoryExId) {
           document.getElementById('btn-start-accessory')?.addEventListener('click', () => startAccessorySession(accessoryExId));
         }
+        bindBwNudgeEvents();
         return;
       }
 
@@ -2947,10 +2960,11 @@
       }
 
 
-      content.innerHTML = html;
+      content.innerHTML = bwNudgeHTML + html;
       content.querySelectorAll('.dismiss-btn').forEach(btn => {
         btn.addEventListener('click', () => btn.closest('.missed-banner').remove());
       });
+      bindBwNudgeEvents();
 
       if (alreadyDoneToday) {
         cta.innerHTML = `<button class="btn btn-secondary" id="btn-unscheduled-extra">Log Unscheduled Session</button>`;
@@ -3552,17 +3566,21 @@
     // HISTORY SCREEN
     // ═══════════════════════════════════════════════════════════════
 
-    let historyFilter = 'all';
+    let historyFilter = 'heavy';
 
     function buildSessionHistory() {
       const data = loadData();
       const map = {};
-      const EX_ORDER = { pullups: 1, dips: 2, chinups: 1, paused_dips: 2 };
       Object.entries(data.exercises).forEach(([exId, ex]) => {
-        // Exclude accessory exercises from History entirely
+        // Fix 2: accessory exercises are excluded from History entirely
         if (exId === 'accessory_pullups' || exId === 'accessory_chinups') return;
-        const sType = (exId === 'dips' || exId === 'pullups') ? 'heavy' : 'assistance';
         (ex.sessions || []).forEach(sess => {
+          let sType = sess.sessionType;
+          if (sType === 'pr') sType = 'heavy';
+          // Fix 3: unscheduled sessions use real type derived from exercises
+          if (sType === 'unscheduled') {
+            sType = (exId === 'dips' || exId === 'pullups') ? 'heavy' : 'assistance';
+          }
           const key = `${sess.date}__${sType}`;
           if (!map[key]) map[key] = { date: sess.date, sessionType: sType, notes: sess.notes || '', exercises: [] };
           else if (!map[key].notes && sess.notes) map[key].notes = sess.notes;
@@ -3573,11 +3591,7 @@
           });
         });
       });
-      const list = Object.values(map).sort((a, b) => b.date.localeCompare(a.date));
-      list.forEach(sess => {
-        sess.exercises.sort((a, b) => (EX_ORDER[a.id] || 99) - (EX_ORDER[b.id] || 99));
-      });
-      return list;
+      return Object.values(map).sort((a, b) => b.date.localeCompare(a.date));
     }
 
     function fmtDate(dateStr) {
@@ -3683,46 +3697,7 @@
     // PROGRESS SCREEN
     // ═══════════════════════════════════════════════════════════════
 
-    function buildPRHistoryHTML(ex) {
-      // Collect all sessions that were PRs by scanning sessions where a new-best was set.
-      // We reconstruct a running best-weight-and-reps from sessions to find historic PRs.
-      const sessions = (ex.sessions || []).slice().sort((a, b) => a.date.localeCompare(b.date));
-      if (!sessions.length) return '';
 
-      const prRows = [];
-      let bestWeight = -1, bestReps = -1;
-      for (const s of sessions) {
-        const w = s.actualWeight || 0;
-        const bestSet = (s.sets || []).reduce((best, set) =>
-          set.reps > best.reps || (set.reps === best.reps && w >= bestWeight) ? set : best, { reps: 0 });
-        if (w > bestWeight || (w === bestWeight && bestSet.reps > bestReps)) {
-          bestWeight = w;
-          bestReps = bestSet.reps;
-          const { day, date } = fmtDate(s.date);
-          prRows.push({ day, date, weight: w, reps: bestSet.reps });
-        }
-      }
-      if (prRows.length < 2) return ''; // only show if there's actual history
-
-      const rows = prRows.slice().reverse().slice(0, 8).map((r, i) =>
-        `<tr class="${i % 2 === 0 ? 'even' : 'odd'}">
-      <td>${r.day} ${r.date}</td>
-      <td class="bold">${r.weight}kg</td>
-      <td>${r.reps} reps</td>
-    </tr>`
-      ).join('');
-
-      return `
-    <div style="margin-top:16px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">PR HISTORY</div>
-      <div class="table-wrap">
-        <table class="session-table">
-          <thead><tr><th>DATE</th><th>WEIGHT</th><th>REPS</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>
-    </div>`;
-    }
 
 
     let progressEx = 'dips';
@@ -3772,12 +3747,8 @@
       const points = getProgressPoints(progressEx, progressPeriod);
       const container = document.getElementById('progress-content');
 
-      // PR Card + Rank Badge
+      // PR Card
       let prHTML = '';
-      const exCat = progressEx === 'paused_dips' ? 'dips' : progressEx;
-      const sixRM = ex.sixRM || ex.currentWeight;
-      const oneRM = ex.oneRM || roundToHalf(sixRM * 1.2);
-      const rankData = sixRM > 0 ? calculateRank(oneRM, sixRM, exCat) : null;
       if (ex.pr) {
         const { date } = fmtDate(ex.pr.date);
         prHTML = `
@@ -3788,18 +3759,6 @@
         <div class="pr-card-date">${date}</div>
       </div>`;
       }
-      const rankBadgeHTML = rankData ? `
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-card);">
-      <span style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:900;letter-spacing:0.08em;text-transform:uppercase;color:#fff;background:${rankData.color};">${rankData.rank}</span>
-      <div style="flex:1;">
-        <div style="font-size:11px;color:var(--muted);letter-spacing:0.06em;text-transform:uppercase;">Current Rank</div>
-        <div style="font-size:13px;font-weight:700;color:var(--text);">Score ${rankData.score}</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:10px;color:var(--muted);">1RM</div>
-        <div style="font-size:13px;font-weight:700;color:var(--text);">${oneRM}kg</div>
-      </div>
-    </div>` : '';
 
       // Period tabs
       const periodHTML = `
@@ -3830,63 +3789,53 @@
       </div>
     </div>`;
 
-      // Session table
-      const allSessions = (ex.sessions || []).slice().reverse();
-      let tableHTML = '';
-      if (!allSessions.length) {
-        tableHTML = `<div class="table-wrap"><div style="text-align:center;padding:32px;font-size:13px;color:var(--muted);">No sessions yet</div></div>`;
-      } else {
-        const rows = allSessions.map((s, i) => {
-          const { day, date } = fmtDate(s.date);
-          const avgReps = s.sets?.length ? Math.round(s.sets.reduce((a, r) => a + r.reps, 0) / s.sets.length) : 0;
-          const bestRIR = s.sets?.length ? Math.min(...s.sets.map(r => r.rir)) : '—';
-          const isPR = !!(ex.pr && ex.pr.date === s.date);
-          return `<tr class="${i % 2 === 0 ? 'even' : 'odd'}${isPR ? ' is-pr' : ''}">
-        <td>${day} ${date}</td>
-        <td class="bold">${s.actualWeight}kg</td>
-        <td>${s.sets?.length || 0}×${avgReps}</td>
-        <td>${bestRIR}</td>
-      </tr>`;
-        }).join('');
-        tableHTML = `
-      <div class="table-wrap" style="margin-bottom:12px;">
-        <table class="session-table">
-          <thead><tr>
-            <th>DATE</th><th>WEIGHT</th><th>SETS</th><th>LOWEST RIR</th>
-          </tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
-      </div>`;
-      }
-
-      container.innerHTML = prHTML + rankBadgeHTML + periodHTML +
+      container.innerHTML = prHTML + periodHTML +
         `<div class="chart-wrap" style="margin-bottom:12px;">
       <canvas class="progress-canvas" id="progress-canvas"></canvas>
       <div class="chart-tooltip" id="chart-tooltip"></div>
-    </div>` + statsHTML + tableHTML + buildPRHistoryHTML(ex);
+    </div>` +
+        `<div class="chart-wrap" style="margin-bottom:12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px 2px;font-size:11px;font-weight:700;color:var(--muted);">
+        <div style="display:flex;gap:12px;align-items:center;">
+          <span style="color:#0099ff;">● Bodyweight (kg)</span>
+          <span style="color:#00cc66;">● % BW Lifted</span>
+        </div>
+        <div style="letter-spacing:0.06em;text-transform:uppercase;">BODYWEIGHT &amp; % BW</div>
+      </div>
+      <canvas class="progress-canvas" id="bw-progress-canvas" style="height:110px;"></canvas>
+    </div>` + statsHTML;
 
       // Wire period tabs
       document.getElementById('period-tabs').querySelectorAll('.period-tab').forEach(btn => {
         btn.addEventListener('click', () => { progressPeriod = btn.dataset.p; renderProgressContent(); });
       });
 
-      // Draw chart
+      // Draw main chart
       const canvas = document.getElementById('progress-canvas');
-      // Set actual pixel size from CSS size
-      const rect = canvas.getBoundingClientRect();
-      canvas.width = rect.width || 440;
-      canvas.height = rect.height || 200;
-      // Use DPR for crisp rendering
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = canvas.clientWidth * dpr;
-      canvas.height = canvas.clientHeight * dpr;
-      const ctx = canvas.getContext('2d');
-      ctx.scale(dpr, dpr);
-      drawProgressChart(ctx, points, canvas.clientWidth, canvas.clientHeight);
+      if (canvas) {
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = canvas.clientWidth * dpr;
+        canvas.height = canvas.clientHeight * dpr;
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        drawProgressChart(ctx, points, canvas.clientWidth, canvas.clientHeight);
 
-      // Tooltip interaction
-      canvas.addEventListener('click', e => handleChartClick(e, canvas, points));
-      canvas.addEventListener('touchstart', e => { e.preventDefault(); handleChartClick(e, canvas, points); }, { passive: false });
+        // Tooltip interaction
+        canvas.addEventListener('click', e => handleChartClick(e, canvas, points));
+        canvas.addEventListener('touchstart', e => { e.preventDefault(); handleChartClick(e, canvas, points); }, { passive: false });
+      }
+
+      // Draw BW chart
+      const bwCanvas = document.getElementById('bw-progress-canvas');
+      if (bwCanvas) {
+        const bwDpr = window.devicePixelRatio || 1;
+        bwCanvas.width = bwCanvas.clientWidth * bwDpr;
+        bwCanvas.height = bwCanvas.clientHeight * bwDpr;
+        const bwCtx = bwCanvas.getContext('2d');
+        bwCtx.scale(bwDpr, bwDpr);
+        const bwPoints = getBWProgressPoints(points, data);
+        drawBWProgressChart(bwCtx, bwPoints, bwCanvas.clientWidth, bwCanvas.clientHeight);
+      }
     }
 
     function drawProgressChart(ctx, points, W, H) {
@@ -3995,6 +3944,121 @@
       }
     }
 
+    function getBWProgressPoints(points, data) {
+      const bwHist = (data.profile.bodyweightHistory || []).slice().sort((a, b) => a.date.localeCompare(b.date));
+      const fallbackBW = data.profile.bodyweight || (bwHist.length ? bwHist[0].weight : 0);
+
+      return points.map(p => {
+        let bw = fallbackBW;
+        for (let i = bwHist.length - 1; i >= 0; i--) {
+          if (bwHist[i].date <= p.date) {
+            bw = bwHist[i].weight;
+            break;
+          }
+        }
+        const pct = bw > 0 ? roundToHalf((p.weight / bw) * 100) : 0;
+        return { date: p.date, weight: p.weight, bw, pct };
+      });
+    }
+
+    function drawBWProgressChart(ctx, bwPoints, W, H) {
+      const PAD = { top: 12, right: 36, bottom: 24, left: 36 };
+      const innerW = W - PAD.left - PAD.right;
+      const innerH = H - PAD.top - PAD.bottom;
+
+      ctx.clearRect(0, 0, W, H);
+      ctx.fillStyle = '#111';
+      ctx.fillRect(0, 0, W, H);
+
+      if (bwPoints.length < 2) {
+        ctx.fillStyle = '#444';
+        ctx.font = `12px system-ui`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('Log more sessions to see progress', W / 2, H / 2);
+        return;
+      }
+
+      const bws = bwPoints.map(p => p.bw);
+      const pcts = bwPoints.map(p => p.pct);
+
+      const minBW = Math.min(...bws), maxBW = Math.max(...bws);
+      const bwPad = (maxBW - minBW) * 0.1 || 2;
+      const loBW = Math.max(0, minBW - bwPad), hiBW = maxBW + bwPad;
+      const bwRange = hiBW - loBW || 1;
+
+      const minPct = Math.min(...pcts), maxPct = Math.max(...pcts);
+      const pctPad = (maxPct - minPct) * 0.1 || 5;
+      const loPct = Math.max(0, minPct - pctPad), hiPct = maxPct + pctPad;
+      const pctRange = hiPct - loPct || 1;
+
+      const dates = bwPoints.map(p => new Date(p.date + 'T12:00:00').getTime());
+      const minD = dates[0], maxD = dates[dates.length - 1];
+      const dRange = maxD - minD || 1;
+
+      const toX = d => PAD.left + ((d - minD) / dRange) * innerW;
+      const toYBW = b => PAD.top + ((hiBW - b) / bwRange) * innerH;
+      const toYPct = p => PAD.top + ((hiPct - p) / pctRange) * innerH;
+
+      // Gridlines & Y-axis labels
+      const gridCount = 3;
+      ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1;
+      for (let i = 0; i <= gridCount; i++) {
+        const y = PAD.top + (i / gridCount) * innerH;
+        ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(W - PAD.right, y); ctx.stroke();
+        // Left Y axis: Bodyweight kg (#0099ff)
+        const bwVal = hiBW - (i / gridCount) * bwRange;
+        ctx.fillStyle = '#0099ff'; ctx.font = '9px system-ui'; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+        ctx.fillText(bwVal % 1 === 0 ? `${bwVal}k` : `${bwVal.toFixed(1)}k`, PAD.left - 4, y);
+        // Right Y axis: % BW (#00cc66)
+        const pctVal = hiPct - (i / gridCount) * pctRange;
+        ctx.fillStyle = '#00cc66'; ctx.textAlign = 'left';
+        ctx.fillText(`${pctVal.toFixed(0)}%`, W - PAD.right + 4, y);
+      }
+
+      // X axis labels (up to 5)
+      const step = Math.ceil(bwPoints.length / 5);
+      ctx.fillStyle = '#444'; ctx.font = '9px system-ui'; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+      for (let i = 0; i < bwPoints.length; i += step) {
+        const d = new Date(bwPoints[i].date + 'T12:00:00');
+        ctx.fillText(`${d.getDate()}/${d.getMonth() + 1}`, toX(dates[i]), H - PAD.bottom + 4);
+      }
+
+      // Line 1: Bodyweight (#0099ff)
+      const bwCoords = bwPoints.map((p, i) => [toX(dates[i]), toYBW(p.bw)]);
+      ctx.strokeStyle = '#0099ff'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(bwCoords[0][0], bwCoords[0][1]);
+      for (let i = 1; i < bwCoords.length; i++) {
+        const [px, py] = bwCoords[i - 1], [cx, cy] = bwCoords[i];
+        const cpx = (px + cx) / 2;
+        ctx.bezierCurveTo(cpx, py, cpx, cy, cx, cy);
+      }
+      ctx.stroke();
+
+      // Line 2: % BW Lifted (#00cc66)
+      const pctCoords = bwPoints.map((p, i) => [toX(dates[i]), toYPct(p.pct)]);
+      ctx.strokeStyle = '#00cc66'; ctx.lineWidth = 2; ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(pctCoords[0][0], pctCoords[0][1]);
+      for (let i = 1; i < pctCoords.length; i++) {
+        const [px, py] = pctCoords[i - 1], [cx, cy] = pctCoords[i];
+        const cpx = (px + cx) / 2;
+        ctx.bezierCurveTo(cpx, py, cpx, cy, cx, cy);
+      }
+      ctx.stroke();
+
+      // Dots (radius 3)
+      ctx.fillStyle = '#0099ff';
+      bwCoords.forEach(([x, y]) => {
+        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.fillStyle = '#00cc66';
+      pctCoords.forEach(([x, y]) => {
+        ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill();
+      });
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // DEV UTILITIES
     // ═══════════════════════════════════════════════════════════════
@@ -4021,6 +4085,8 @@
       showScreen('s-weights');
     });
     document.getElementById('weights-back').addEventListener('click', goBack);
+    const bwInpElem = document.getElementById('input-bodyweight');
+    if (bwInpElem) { bwInpElem.addEventListener('input', updateWeightDisplays); bwInpElem.addEventListener('change', updateWeightDisplays); }
     ['dips', 'pullups', 'chinups'].forEach(ex => {
       const inp = document.getElementById(`input-${ex}`);
       const repsInp = document.getElementById(`input-${ex}-reps`);
@@ -4186,10 +4252,26 @@
       <button class="settings-btn danger" data-action="reset">Reset</button>
     </div>`;
 
+      // ── Section 2.5: Bodyweight
+      const bwVal = data.profile.bodyweight;
+      const bwStr = bwVal ? `${bwVal}<span>kg</span>` : '—';
+      const bwSectionRows = `<div class="settings-row">
+      <div class="settings-row-label">
+        <div class="settings-row-name">Current Bodyweight</div>
+        <div class="settings-row-sub">Used for bodyweight ratio tracking</div>
+      </div>
+      <div class="settings-weight-val">${bwStr}</div>
+      <button class="settings-btn" data-action="bodyweight">Update</button>
+    </div>`;
+
       c.innerHTML = `
     <div class="settings-section">
       <div class="settings-section-title">Training Phases</div>
       <div class="settings-card">${phaseRows}</div>
+    </div>
+    <div class="settings-section">
+      <div class="settings-section-title">Bodyweight</div>
+      <div class="settings-card">${bwSectionRows}</div>
     </div>
     <div class="settings-section">
       <div class="settings-section-title">Current Weights</div>
@@ -4244,6 +4326,7 @@
           if (action === 'export') doSettingsExport();
           if (action === 'import') doSettingsImport();
           if (action === 'reset') showModal('modal-reset1');
+          if (action === 'bodyweight') openBodyweightModal();
         });
       });
 
@@ -4322,6 +4405,31 @@
       hideModal('modal-weight-adjust');
       renderSettingsScreen();
       showToast('Weight updated');
+    });
+
+    // ── Bodyweight adjust modal
+    function openBodyweightModal() {
+      const data = loadData();
+      const bw = data.profile.bodyweight;
+      document.getElementById('mbw-current').textContent = bw ? `${bw}kg` : 'Not set';
+      document.getElementById('mbw-input').value = bw || '';
+      showModal('modal-bodyweight-adjust');
+    }
+
+    document.getElementById('mbw-cancel').addEventListener('click', () => hideModal('modal-bodyweight-adjust'));
+    document.getElementById('mbw-save').addEventListener('click', () => {
+      const newW = parseWeight(document.getElementById('mbw-input').value);
+      if (isNaN(newW) || newW <= 0) return;
+      const data = loadData();
+      const roundW = roundToHalf(newW);
+      data.profile.bodyweight = roundW;
+      if (!data.profile.bodyweightHistory) data.profile.bodyweightHistory = [];
+      const todayStr = new Date().toISOString().split('T')[0];
+      data.profile.bodyweightHistory.push({ date: todayStr, weight: roundW });
+      saveData(data);
+      hideModal('modal-bodyweight-adjust');
+      renderSettingsScreen();
+      showToast('Bodyweight updated');
     });
 
     // ── Deload modal
