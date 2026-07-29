@@ -1706,6 +1706,10 @@
           <div style="width:100%;max-width:320px;">
             <button class="btn btn-primary" id="btn-get-started">GET STARTED</button>
           </div>
+          <div style="width:100%;max-width:320px;margin-top:14px;">
+            <button class="btn" id="btn-import-onboarding" style="font-size:13px;font-weight:600;padding:12px 16px;background:none;border:1px solid var(--border);color:var(--muted);width:100%;border-radius:var(--radius-button);cursor:pointer;">Already have data? Import backup</button>
+            <input type="file" id="onboarding-import-input" accept=".json" style="display:none;" />
+          </div>
           <div class="gap-24"></div>
           <div style="font-size:12px;color:#333;max-width:260px;text-align:center;line-height:1.6;">
             Progressive overload tracking for weighted dips, pull-ups &amp; chin-ups
@@ -2200,7 +2204,7 @@
     // ENGINE — full implementation
     // ═══════════════════════════════════════════════════════════════
 
-    const APP_VERSION = '1.2.7'; // Bump this on every deployment to invalidate the service worker cache
+    const APP_VERSION = '1.2.8'; // Bump this on every deployment to invalidate the service worker cache
 
     function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
@@ -4074,6 +4078,7 @@
     document.getElementById('btn-get-started').addEventListener('click', () => {
       showScreen('s-weights');
     });
+    document.getElementById('btn-import-onboarding').addEventListener('click', doOnboardingImport);
     document.getElementById('weights-back').addEventListener('click', goBack);
     const bwInpElem = document.getElementById('input-bodyweight');
     if (bwInpElem) { bwInpElem.addEventListener('input', updateWeightDisplays); bwInpElem.addEventListener('change', updateWeightDisplays); }
@@ -4488,6 +4493,18 @@
     // ── Import from settings
     let _pendingImportData = null;
 
+    function parseRogueBackupJSON(text) {
+      try {
+        const parsed = JSON.parse(text);
+        if (!parsed || typeof parsed !== 'object' || !parsed.profile || !parsed.exercises) {
+          return { ok: false, error: 'Invalid backup file' };
+        }
+        return { ok: true, data: parsed };
+      } catch (_) {
+        return { ok: false, error: 'Invalid backup file' };
+      }
+    }
+
     function doSettingsImport() {
       const fileInput = document.getElementById('import-file-input');
       fileInput.value = ''; // reset so same file can be re-selected
@@ -4496,19 +4513,38 @@
         if (!file) return;
         const reader = new FileReader();
         reader.onload = (e) => {
-          let parsed;
-          try {
-            parsed = JSON.parse(e.target.result);
-          } catch (_) {
-            showToast('Invalid backup file');
+          const res = parseRogueBackupJSON(e.target.result);
+          if (!res.ok) {
+            showToast(res.error);
             return;
           }
-          if (!parsed || typeof parsed !== 'object' || !parsed.profile || !parsed.exercises) {
-            showToast('Invalid backup file');
-            return;
-          }
-          _pendingImportData = parsed;
+          _pendingImportData = res.data;
           showModal('modal-import-confirm');
+        };
+        reader.onerror = () => showToast('Could not read file');
+        reader.readAsText(file);
+      };
+      fileInput.click();
+    }
+
+    function doOnboardingImport() {
+      const fileInput = document.getElementById('onboarding-import-input');
+      fileInput.value = '';
+      fileInput.onchange = () => {
+        const file = fileInput.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const res = parseRogueBackupJSON(e.target.result);
+          if (!res.ok) {
+            showToast(res.error);
+            return;
+          }
+          res.data.profile.onboardingComplete = true;
+          saveData(res.data);
+          state.navHistory = [];
+          _activateScreen('s-today');
+          showToast('Data imported');
         };
         reader.onerror = () => showToast('Could not read file');
         reader.readAsText(file);
