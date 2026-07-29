@@ -2200,7 +2200,7 @@
     // ENGINE — full implementation
     // ═══════════════════════════════════════════════════════════════
 
-    const APP_VERSION = '1.2.6'; // Bump this on every deployment to invalidate the service worker cache
+    const APP_VERSION = '1.2.7'; // Bump this on every deployment to invalidate the service worker cache
 
     function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
@@ -2680,16 +2680,21 @@
       const content = document.getElementById('today-content');
       const cta = document.getElementById('today-cta');
 
-      // Monthly Bodyweight Nudge banner check (>30 days since last bodyweightHistory log or empty)
-      const bwHistory = data.profile.bodyweightHistory || [];
+      // Monthly Bodyweight Nudge banner check (>30 days since setupDate and >30 days since last bodyweightHistory log)
+      const setupDate = data.profile.setupDate ? new Date(data.profile.setupDate) : null;
+      const daysSinceSetup = setupDate ? Math.floor((now - setupDate) / (1000 * 60 * 60 * 24)) : 999;
+
       let showBwNudge = false;
-      if (!bwHistory.length) {
-        showBwNudge = true;
-      } else {
-        const lastEntry = bwHistory[bwHistory.length - 1];
-        const lastDate = new Date(lastEntry.date + 'T12:00:00');
-        const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
-        if (diffDays > 30) showBwNudge = true;
+      if (daysSinceSetup >= 30) {
+        const bwHistory = data.profile.bodyweightHistory || [];
+        if (!bwHistory.length) {
+          showBwNudge = true;
+        } else {
+          const lastEntry = bwHistory[bwHistory.length - 1];
+          const lastDate = new Date(lastEntry.date + 'T12:00:00');
+          const diffDays = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+          if (diffDays > 30) showBwNudge = true;
+        }
       }
 
       let bwNudgeHTML = '';
@@ -2979,13 +2984,14 @@
 
     function getMissedBanners(exIds, data) {
       const today = new Date(); today.setHours(0, 0, 0, 0);
-      const cutoff = new Date(today); cutoff.setDate(cutoff.getDate() - 5);
       return exIds.flatMap(id => {
         const ex = data.exercises[id];
         if (!ex.sessions?.length) return [];
         const last = new Date(ex.sessions[ex.sessions.length - 1].date); last.setHours(0, 0, 0, 0);
-        if (last >= cutoff) return [];
-        return [{ exId: id, name: ex.name, days: Math.floor((today - last) / 86400000) }];
+        const days = Math.floor((today - last) / 86400000);
+        const threshold = (id === 'chinups' || id === 'paused_dips') ? 9 : 5;
+        if (days < threshold) return [];
+        return [{ exId: id, name: ex.name, days }];
       });
     }
 
@@ -3747,19 +3753,6 @@
       const points = getProgressPoints(progressEx, progressPeriod);
       const container = document.getElementById('progress-content');
 
-      // PR Card
-      let prHTML = '';
-      if (ex.pr) {
-        const { date } = fmtDate(ex.pr.date);
-        prHTML = `
-      <div class="pr-card" style="margin-bottom:12px;">
-        <div class="pr-card-label">Personal Record</div>
-        <div class="pr-card-weight">${ex.pr.weight}<span>kg</span></div>
-        <div class="pr-card-reps">× ${ex.pr.reps} reps</div>
-        <div class="pr-card-date">${date}</div>
-      </div>`;
-      }
-
       // Period tabs
       const periodHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
@@ -3789,18 +3782,15 @@
       </div>
     </div>`;
 
-      container.innerHTML = prHTML + periodHTML +
+      container.innerHTML = periodHTML +
         `<div class="chart-wrap" style="margin-bottom:12px;">
       <canvas class="progress-canvas" id="progress-canvas"></canvas>
       <div class="chart-tooltip" id="chart-tooltip"></div>
     </div>` +
         `<div class="chart-wrap" style="margin-bottom:12px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 12px 2px;font-size:11px;font-weight:700;color:var(--muted);">
-        <div style="display:flex;gap:12px;align-items:center;">
-          <span style="color:#0099ff;">● Bodyweight (kg)</span>
-          <span style="color:#00cc66;">● % BW Lifted</span>
-        </div>
-        <div style="letter-spacing:0.06em;text-transform:uppercase;">BODYWEIGHT &amp; % BW</div>
+      <div style="display:flex;align-items:center;gap:12px;padding:8px 12px 2px;font-size:11px;font-weight:700;">
+        <span style="color:#0099ff;">● BW (kg)</span>
+        <span style="color:#00cc66;">● % BW</span>
       </div>
       <canvas class="progress-canvas" id="bw-progress-canvas" style="height:110px;"></canvas>
     </div>` + statsHTML;
