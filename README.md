@@ -77,4 +77,6 @@ Progression logic adapted from the Mathew Zlat weighted calisthenics system. Buy
 
 ---
 
-MIT License
+This project is licensed under CC BY-NC 4.0 — free for personal use, not for commercial purposes.
+https://creativecommons.org/licenses/by-nc/4.0/
+
