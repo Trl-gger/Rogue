@@ -1,4 +1,4 @@
-const CACHE = 'rogue-v1.3.1'; // Must match APP_VERSION in index.html — bump on every deployment
+const CACHE = 'rogue-v1.3.3'; // Must match APP_VERSION in index.html — bump on every deployment
 
 self.addEventListener('install', e => {
   e.waitUntil(

@@ -1707,7 +1707,9 @@
             <button class="btn btn-primary" id="btn-get-started">GET STARTED</button>
           </div>
           <div style="width:100%;max-width:320px;margin-top:14px;">
-            <button class="btn" id="btn-import-onboarding" style="font-size:13px;font-weight:600;padding:12px 16px;background:none;border:1px solid var(--border);color:var(--muted);width:100%;border-radius:var(--radius-button);cursor:pointer;">Already have data? Import backup</button>
+            <button class="btn" id="btn-import-onboarding"
+              style="font-size:13px;font-weight:600;padding:12px 16px;background:none;border:1px solid var(--border);color:var(--muted);width:100%;border-radius:var(--radius-button);cursor:pointer;">Already
+              have data? Import backup</button>
             <input type="file" id="onboarding-import-input" accept=".json" style="display:none;" />
           </div>
           <div class="gap-24"></div>
@@ -1756,8 +1758,8 @@
               </div>
             </div>
             <div class="input-hint">Bodyweight (kg)</div>
-            <input class="input-field" id="input-bodyweight" type="text" inputmode="decimal" min="30" max="300" step="0.5"
-              placeholder="e.g. 75" autocomplete="off" />
+            <input class="input-field" id="input-bodyweight" type="text" inputmode="decimal" min="30" max="300"
+              step="0.5" placeholder="e.g. 75" autocomplete="off" />
           </div>
           <div class="weight-card">
             <div class="weight-card-header">
@@ -1992,6 +1994,7 @@
             <button class="filter-tab active" data-filter="all">ALL</button>
             <button class="filter-tab" data-filter="heavy">HEAVY</button>
             <button class="filter-tab" data-filter="assistance">ASSISTANCE</button>
+            <button class="filter-tab" data-filter="skill">SKILL</button>
           </div>
         </div>
         <div id="history-list"></div>
@@ -2123,7 +2126,8 @@
   <div class="modal-overlay" id="modal-bodyweight-adjust">
     <div class="modal-card">
       <div class="modal-title">Update Bodyweight</div>
-      <div class="modal-body" style="margin-bottom:12px;font-size:13px;">Current: <strong id="mbw-current">—</strong></div>
+      <div class="modal-body" style="margin-bottom:12px;font-size:13px;">Current: <strong id="mbw-current">—</strong>
+      </div>
       <input type="text" class="set-number-input" id="mbw-input" inputmode="decimal"
         style="width:100%;margin-bottom:16px;font-size:24px;text-align:center;" placeholder="0" step="0.5" />
       <div class="modal-actions">
@@ -2194,6 +2198,18 @@
     </div>
   </div>
 
+  <!-- Modal: Skill Unlock -->
+  <div class="modal-overlay" id="modal-skill-unlock">
+    <div class="modal-card">
+      <div class="modal-title">You're ready for skill work</div>
+      <div class="modal-body">Add Saturday muscle-up and OAC/OAP sessions to your schedule?</div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" id="mskill-cancel">Not Yet</button>
+        <button class="btn btn-primary" id="mskill-confirm">Enable</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Hidden file input for import -->
   <input type="file" id="import-file-input" accept="application/json" style="display:none;" />
 
@@ -2202,7 +2218,8 @@
     // ENGINE — full implementation
     // ═══════════════════════════════════════════════════════════════
 
-    const APP_VERSION = '1.3.1'; // Bump this on every deployment to invalidate the service worker cache
+    const APP_VERSION = '1.3.2'; // Bump this on every deployment to invalidate the service worker cache
+    const BUILD_TIMESTAMP = '2026-08-08 01:13';
 
     function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
@@ -2420,7 +2437,7 @@
 
     function getDefaultData() {
       return {
-        profile: { onboardingComplete: false, setupDate: null, exportReminderCount: 0, accessoryStreak: 0, accessoryStreakPaused: false, lastAccessoryStreakCheckWeek: null, bodyweight: null, bodyweightHistory: [] },
+        profile: { onboardingComplete: false, setupDate: null, exportReminderCount: 0, accessoryStreak: 0, accessoryStreakPaused: false, lastAccessoryStreakCheckWeek: null, bodyweight: null, bodyweightHistory: [], skillSessionEnabled: false, skillWeekIsOAC: true, skillSessionPromptShown: false, skillSessions: [] },
         exercises: {
           dips: { name: 'Weighted Dips', sessionDays: [1, 5], sessionType: 'heavy', phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, deloadCount: 0, consecutiveFailedDeloads: 0, consecutiveProgressCount: 0, isInPostDeloadTracking: false, lastDeloadDate: null, pr: null, sessions: [], s2Week: 1, s2HeavySessionsThisCycle: 0, s2AccumulatedIncrement: 0, s2PendingHeavyIncrement: 0 },
           paused_dips: { name: 'Paused Dips', sessionDays: [3], sessionType: 'assistance', followsExercise: 'dips', currentWeight: 0, startingWeight: 0, pendingDipsIncrement: 0, sessions: [] },
@@ -2456,6 +2473,10 @@
         if (data.profile.lastAccessoryStreakCheckWeek === undefined) data.profile.lastAccessoryStreakCheckWeek = null;
         if (data.profile.bodyweight === undefined) data.profile.bodyweight = null;
         if (!data.profile.bodyweightHistory) data.profile.bodyweightHistory = [];
+        if (data.profile.skillSessionEnabled === undefined) data.profile.skillSessionEnabled = false;
+        if (data.profile.skillWeekIsOAC === undefined) data.profile.skillWeekIsOAC = true;
+        if (data.profile.skillSessionPromptShown === undefined) data.profile.skillSessionPromptShown = false;
+        if (!data.profile.skillSessions) data.profile.skillSessions = [];
         // Migrate: add stall detection fields for independent exercises
         INDEPENDENT_EX.forEach(id => {
           const ex = data.exercises[id];
@@ -2488,6 +2509,13 @@
         case 'advanced': return 'Advanced';
         default: return phase;
       }
+    }
+
+    function isSkillSessionUnlocked(data) {
+      const p = data.exercises.pullups.phase;
+      const c = data.exercises.chinups.phase;
+      const valid = ['intermediate_s1', 'intermediate_s2', 'advanced'];
+      return valid.includes(p) || valid.includes(c);
     }
 
     const PHASE_LABELS = { novice: 'Novice', advanced_novice: 'Advanced Novice', intermediate_s1: 'Intermediate', intermediate_s2: 'Advanced Intermediate' };
@@ -2778,36 +2806,62 @@
             </div>`;
             }
           } else if (day === 6 || day === 0) {
-            // Saturday or Sunday — accessory chin-ups, weekly lock (resets Monday 00:00)
-            accessoryExId = 'accessory_chinups';
-            const acEx = data.exercises.accessory_chinups || { sessions: [] };
-            const doneThisWeek = isAccessoryDoneThisWeek('accessory_chinups');
-            isDone = doneThisWeek;
-            if (doneThisWeek) {
-              const now2 = new Date();
-              const dow = now2.getDay();
-              const diff = dow === 0 ? 6 : dow - 1;
-              const mon = new Date(now2); mon.setDate(now2.getDate() - diff); mon.setHours(0, 0, 0, 0);
-              const thisWeekSess = acEx.sessions.find(s => new Date(s.date + 'T00:00:00') >= mon);
-              const { day: dayStr } = fmtDate(thisWeekSess ? thisWeekSess.date : todayStr);
-              accessoryCardHTML = `
-            <div class="presc-card" style="margin-bottom:16px;border-left:3px solid var(--success);">
-              <div class="presc-ex-name">Accessory Chin-ups</div>
-              <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Accessory Chin-ups — done this week (${dayStr})</div>
-            </div>`;
+            if (day === 6 && data.profile.skillSessionEnabled) {
+              const oacType = data.profile.skillWeekIsOAC ? 'One-Arm Chin-up (OAC)' : 'One-Arm Pull-up (OAP)';
+              const doneToday = (data.profile.skillSessions || []).some(s => s.date === todayStr);
+              isDone = doneToday;
+              if (doneToday) {
+                accessoryCardHTML = `
+              <div class="day-badge" style="background:#6c5ce7;color:#fff;margin-bottom:16px;">SKILL DAY</div>
+              <div class="presc-card" style="margin-bottom:16px;border-left:3px solid #6c5ce7;">
+                <div class="presc-ex-name">Skill Session</div>
+                <div style="font-size:12px;color:#6c5ce7;font-weight:700;margin-top:4px;">✓ Skill work done today</div>
+              </div>`;
+              } else {
+                accessoryCardHTML = `
+              <div class="day-badge" style="background:#6c5ce7;color:#fff;margin-bottom:16px;">SKILL DAY</div>
+              <div class="presc-card" style="margin-bottom:16px;border-left:3px solid #6c5ce7;">
+                <div class="presc-ex-name">Skill Session</div>
+                <div style="font-size:13px;color:#333;margin-top:6px;line-height:1.4;">
+                  1. Muscle-ups (5 sets × 1-3 reps)<br>
+                  2. ${oacType} (5 sets × 1-3 reps)
+                </div>
+                <div style="font-size:12px;color:var(--muted);margin-top:6px;font-style:italic;">Stop when reps stop being clean</div>
+                <button class="btn btn-primary" id="btn-start-skill" style="margin-top:12px;background:#6c5ce7;">START SKILL SESSION</button>
+              </div>`;
+              }
             } else {
-              accessoryCardHTML = `
-            <div class="presc-card" style="margin-bottom:16px;">
-              <div class="presc-ex-name">Accessory Chin-ups</div>
-              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Complete accessory session</div>
-              <button class="btn btn-secondary" id="btn-start-accessory" style="margin-top:12px;">START</button>
-            </div>`;
+              // Saturday or Sunday — accessory chin-ups, weekly lock (resets Monday 00:00)
+              accessoryExId = 'accessory_chinups';
+              const acEx = data.exercises.accessory_chinups || { sessions: [] };
+              const doneThisWeek = isAccessoryDoneThisWeek('accessory_chinups');
+              isDone = doneThisWeek;
+              if (doneThisWeek) {
+                const now2 = new Date();
+                const dow = now2.getDay();
+                const diff = dow === 0 ? 6 : dow - 1;
+                const mon = new Date(now2); mon.setDate(now2.getDate() - diff); mon.setHours(0, 0, 0, 0);
+                const thisWeekSess = acEx.sessions.find(s => new Date(s.date + 'T00:00:00') >= mon);
+                const { day: dayStr } = fmtDate(thisWeekSess ? thisWeekSess.date : todayStr);
+                accessoryCardHTML = `
+              <div class="presc-card" style="margin-bottom:16px;border-left:3px solid var(--success);">
+                <div class="presc-ex-name">Accessory Chin-ups</div>
+                <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Accessory Chin-ups — done this week (${dayStr})</div>
+              </div>`;
+              } else {
+                accessoryCardHTML = `
+              <div class="presc-card" style="margin-bottom:16px;">
+                <div class="presc-ex-name">Accessory Chin-ups</div>
+                <div style="font-size:12px;color:var(--muted);margin-top:4px;">Complete accessory session</div>
+                <button class="btn btn-secondary" id="btn-start-accessory" style="margin-top:12px;">START</button>
+              </div>`;
+              }
             }
           }
         }
 
         const hasAccessory = accessoryExId !== null;
-        const unscheduledBtnClass = hasAccessory ? 'btn-secondary' : 'btn-primary';
+        const unscheduledBtnClass = (hasAccessory || data.profile.skillSessionEnabled) ? 'btn-secondary' : 'btn-primary';
 
         let dayBadgeHTML = '';
         if (hasAccessory) {
@@ -2841,12 +2895,12 @@
           if (nextSessionType === 'deload_s2') nextExIds = ['chinups', 'paused_dips'];
           else if (nextSessionType === 'pr_s2') nextExIds = ['pullups', 'dips'];
           else nextExIds = nextSessionType === 'heavy' ? ['pullups', 'dips'] : ['chinups', 'paused_dips'];
-          
+
           let nextBadge;
           if (nextSessionType === 'deload_s2') nextBadge = 'DELOAD';
           else if (nextSessionType === 'pr_s2') nextBadge = 'PR DAY';
           else nextBadge = nextSessionType === 'heavy' ? 'HEAVY DAY' : 'ASSISTANCE DAY';
-          
+
           let nextBadgeCls;
           if (nextSessionType === 'deload_s2') nextBadgeCls = 'assist';
           else if (nextSessionType === 'pr_s2') nextBadgeCls = 'heavy';
@@ -2856,7 +2910,7 @@
           for (const exId of nextExIds) {
             const ex = data.exercises[exId];
             let displayWeight, setsText, rirText;
-            
+
             if (nextSessionType === 'deload_s2' || nextSessionType === 'pr_s2') {
               const srcEx = exId === 'chinups' ? data.exercises['pullups'] : (exId === 'paused_dips' ? data.exercises['dips'] : ex);
               displayWeight = roundToHalf(ex.currentWeight + (srcEx.s2AccumulatedIncrement || 0));
@@ -2914,6 +2968,7 @@
         if (accessoryExId) {
           document.getElementById('btn-start-accessory')?.addEventListener('click', () => startAccessorySession(accessoryExId));
         }
+        document.getElementById('btn-start-skill')?.addEventListener('click', () => startSession(['skill_mu', 'skill_oac'], 'skill', 6));
         bindBwNudgeEvents();
         return;
       }
@@ -3110,8 +3165,10 @@
       const isS2Schedule = ALL_EX_IDS.some(id => data.exercises[id]?.phase === 'intermediate_s2');
 
       exercises.forEach(id => {
-        const phase = data.exercises[id].phase;
-        if (sessionType === 'deload_s2' || sessionType === 'pr_s2') {
+        const phase = data.exercises[id]?.phase;
+        if (sessionType === 'skill') {
+          SS.exSessionTypes[id] = 'skill';
+        } else if (sessionType === 'deload_s2' || sessionType === 'pr_s2') {
           SS.exSessionTypes[id] = sessionType;
         } else if (id === 'chinups') {
           SS.exSessionTypes[id] = (isS2Schedule && sessionType === 'assistance') ? 'assistance' : 'heavy';
@@ -3131,19 +3188,28 @@
     function renderSessionScreen() {
       const exId = SS.exercises[SS.currentExIdx];
       const data = loadData();
-      const ex = data.exercises[exId];
 
-      let nameHTML = ex.name;
-      if (SS.sessionType === 'deload_s2') {
-        nameHTML += ` <div style="font-size:12px;color:var(--accent);letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">DELOAD SESSION</div>`;
-      } else if (SS.sessionType === 'pr_s2') {
-        nameHTML += ` <div style="font-size:12px;color:#e8a020;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">⚡ PR ATTEMPT</div>`;
+      let nameHTML = '';
+      if (SS.sessionType === 'skill') {
+        if (exId === 'skill_mu') nameHTML = 'Muscle-ups';
+        else nameHTML = data.profile.skillWeekIsOAC ? 'One-Arm Chin-up (OAC)' : 'One-Arm Pull-up (OAP)';
+        nameHTML += ` <div style="font-size:12px;color:#6c5ce7;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">SKILL SESSION</div>`;
+      } else {
+        const ex = data.exercises[exId];
+        nameHTML = ex.name;
+        if (SS.sessionType === 'deload_s2') {
+          nameHTML += ` <div style="font-size:12px;color:var(--accent);letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">DELOAD SESSION</div>`;
+        } else if (SS.sessionType === 'pr_s2') {
+          nameHTML += ` <div style="font-size:12px;color:#e8a020;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">⚡ PR ATTEMPT</div>`;
+        }
       }
       document.getElementById('session-ex-name').innerHTML = nameHTML;
 
       const counterEl = document.getElementById('session-set-counter');
       if (SS.isAccessory) {
         counterEl.textContent = 'ACCESSORY';
+      } else if (SS.sessionType === 'skill') {
+        counterEl.textContent = SS.view === 'exercise_complete' ? 'COMPLETE ✓' : `SET ${SS.currentSetNum}`;
       } else {
         let totalSets = 3;
         if (SS.sessionType === 'pr_s2') totalSets = 1;
@@ -3151,9 +3217,10 @@
         counterEl.textContent = SS.view === 'exercise_complete' ? 'COMPLETE ✓' : `SET ${SS.currentSetNum} OF ${totalSets}`;
       }
 
-      if (SS.isAccessory) {
+      if (SS.isAccessory || SS.sessionType === 'skill') {
         document.getElementById('session-prescribed').style.display = 'none';
       } else {
+        const ex = data.exercises[exId];
         document.getElementById('session-prescribed').style.display = '';
         let effectiveWeight;
         if (SS.sessionType === 'deload_s2' || SS.sessionType === 'pr_s2') {
@@ -3182,6 +3249,33 @@
       if (!content) return;
       const exId = SS.exercises[SS.currentExIdx];
       const sets = SS.loggedSets[exId] || [];
+
+      if (SS.view === 'skill_interset') {
+        const reps = sets[sets.length - 1].reps;
+        content.innerHTML = `
+          <div class="card" style="margin-bottom:12px;text-align:center;padding:24px 16px;">
+            <div style="font-size:24px;font-weight:700;margin-bottom:8px;">${reps} reps logged</div>
+            <div style="font-size:14px;color:var(--muted);margin-bottom:24px;">Continue to next set?</div>
+            <div style="display:flex;flex-direction:column;gap:12px;">
+              <button class="btn btn-primary" id="btn-skill-next">Next Set</button>
+              <button class="btn btn-ghost" id="btn-skill-finish" style="color:var(--danger);">Form broke — Finish Movement</button>
+            </div>
+          </div>
+          ${buildPrevSetsHTML(sets)}
+        `;
+        document.getElementById('btn-skill-next').addEventListener('click', () => {
+          SS.view = 'logging';
+          persistSS();
+          renderSessionScreen();
+        });
+        document.getElementById('btn-skill-finish').addEventListener('click', () => {
+          SS.view = 'exercise_complete';
+          SS.currentSetNum = sets.length; // Lock it to whatever they actually did
+          persistSS();
+          renderSessionScreen();
+        });
+        return;
+      }
 
       if (SS.view === 'exercise_complete') {
         content.innerHTML = buildExerciseCompleteHTML(exId, sets);
@@ -3237,6 +3331,8 @@
     }
 
     function getTargetLine(exId) {
+      if (SS.sessionType === 'skill') return '5 × 1–3 reps — Stop if form breaks';
+
       const data = loadData();
       const ex = data.exercises[exId];
       if (SS.sessionType === 'deload_s2') return '2 × 5 reps @ RIR 7';
@@ -3338,13 +3434,15 @@
       let maxSets = 3;
       if (SS.sessionType === 'pr_s2') maxSets = 1;
       else if (SS.sessionType === 'deload_s2' || exId === 'paused_dips') maxSets = 2;
+      else if (SS.sessionType === 'skill') maxSets = 5;
 
       if (count >= maxSets) {
-        calcPrescription(exId);
+        if (SS.sessionType !== 'skill') calcPrescription(exId);
         SS.view = 'exercise_complete';
         SS.currentSetNum = maxSets;
       } else {
         SS.currentSetNum = count + 1;
+        if (SS.sessionType === 'skill') SS.view = 'skill_interset';
       }
       persistSS();
       renderSessionScreen();
@@ -3459,6 +3557,7 @@
 
     function saveSessionData() {
       if (SS.isAccessory) { saveAccessorySession(); return; }
+      if (SS.sessionType === 'skill') { saveSkillSession(); return; }
 
       const data = loadData();
       const today = SS.sessionDate;
@@ -3585,6 +3684,10 @@
         return;
       }
 
+      if (!data.profile.skillSessionPromptShown && isSkillSessionUnlocked(data)) {
+        showModal('modal-skill-unlock');
+      }
+
       if (phaseTransitionPending) {
         SS.phaseTransitionExId = phaseTransitionPending.exId;
         clearPersistedSS();
@@ -3593,6 +3696,29 @@
         return;
       }
 
+      clearPersistedSS();
+      _activateScreen('s-today');
+    }
+
+    function saveSkillSession() {
+      const data = loadData();
+      const today = SS.sessionDate;
+      const notes = document.getElementById('session-notes')?.value || '';
+
+      const skillSess = {
+        date: today,
+        notes,
+        isOAC: data.profile.skillWeekIsOAC,
+        loggedSets: SS.loggedSets
+      };
+
+      if (!data.profile.skillSessions) data.profile.skillSessions = [];
+      data.profile.skillSessions.push(skillSess);
+
+      // Toggle OAC/OAP for next week
+      data.profile.skillWeekIsOAC = !data.profile.skillWeekIsOAC;
+
+      saveData(data);
       clearPersistedSS();
       _activateScreen('s-today');
     }
@@ -3731,6 +3857,26 @@
           });
         });
       });
+
+      if (data.profile.skillSessions) {
+        data.profile.skillSessions.forEach(sess => {
+          const key = `${sess.date}__skill`;
+          if (!map[key]) map[key] = { date: sess.date, sessionType: 'skill', notes: sess.notes || '', exercises: [] };
+          else if (!map[key].notes && sess.notes) map[key].notes = sess.notes;
+
+          if (sess.loggedSets && sess.loggedSets['skill_mu']) {
+            map[key].exercises.push({
+              id: 'skill_mu', name: 'Muscle-ups', actualWeight: 0, sets: sess.loggedSets['skill_mu'], hadPR: false, notes: ''
+            });
+          }
+          if (sess.loggedSets && sess.loggedSets['skill_oac']) {
+            map[key].exercises.push({
+              id: 'skill_oac', name: sess.isOAC ? 'One-Arm Chin-up (OAC)' : 'One-Arm Pull-up (OAP)', actualWeight: 0, sets: sess.loggedSets['skill_oac'], hadPR: false, notes: ''
+            });
+          }
+        });
+      }
+
       const list = Object.values(map).sort((a, b) => b.date.localeCompare(a.date));
       list.forEach(sess => {
         sess.exercises.sort((a, b) => (EX_ORDER[a.id] || 99) - (EX_ORDER[b.id] || 99));
@@ -4074,7 +4220,8 @@
 
     function getBWProgressPoints(points, data) {
       const bwHist = (data.profile.bodyweightHistory || []).slice().sort((a, b) => a.date.localeCompare(b.date));
-      const fallbackBW = data.profile.bodyweight || (bwHist.length ? bwHist[0].weight : 0);
+      // Fallback for sessions that predate all history: use earliest recorded BW, not current (latest) BW
+      const fallbackBW = bwHist.length ? bwHist[0].weight : (data.profile.bodyweight || 0);
 
       return points.map(p => {
         let bw = fallbackBW;
@@ -4393,6 +4540,23 @@
       <button class="settings-btn" data-action="bodyweight">Update</button>
     </div>`;
 
+      let skillSectionHTML = '';
+      if (isSkillSessionUnlocked(data)) {
+        skillSectionHTML = `
+    <div class="settings-section">
+      <div class="settings-section-title">Skill Work</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-row-label">
+            <div class="settings-row-name">Skill Sessions</div>
+            <div class="settings-row-sub">Saturday muscle-up and OAC/OAP practice.</div>
+          </div>
+          <button class="settings-btn" id="btn-skill-toggle">${data.profile.skillSessionEnabled ? 'Disable' : 'Enable'}</button>
+        </div>
+      </div>
+    </div>`;
+      }
+
       c.innerHTML = `
     <div class="settings-section">
       <div class="settings-section-title">Training Phases</div>
@@ -4432,13 +4596,14 @@
         </div>
       </div>
     </div>
+    ${skillSectionHTML}
     <div class="settings-section">
       <div class="settings-section-title">About</div>
       <div class="settings-card">
         <div class="settings-row">
           <div class="settings-row-label">
             <div class="settings-row-name">ROGUE</div>
-            <div class="settings-row-sub">Version ${APP_VERSION}</div>
+            <div class="settings-row-sub">Version ${APP_VERSION} (${BUILD_TIMESTAMP})</div>
           </div>
         </div>
       </div>
@@ -4476,6 +4641,13 @@
         renderSettingsScreen();
         showToast(d.profile.accessoryStreakPaused ? 'Streak paused' : 'Streak resumed');
       });
+
+      document.getElementById('btn-skill-toggle')?.addEventListener('click', () => {
+        const d = loadData();
+        d.profile.skillSessionEnabled = !d.profile.skillSessionEnabled;
+        saveData(d);
+        renderSettingsScreen();
+      });
     }
 
     // ── Phase modal
@@ -4506,6 +4678,11 @@
       data.exercises[_settingsPhaseTarget.exId].phase = _settingsPhaseTarget.phase;
       saveData(data);
       hideModal('modal-phase-change');
+
+      if (!data.profile.skillSessionPromptShown && isSkillSessionUnlocked(data)) {
+        showModal('modal-skill-unlock');
+      }
+
       renderSettingsScreen();
       showToast('Phase updated');
     });
@@ -4706,6 +4883,25 @@
     document.getElementById('mr2-confirm').addEventListener('click', () => {
       localStorage.clear();
       location.reload();
+    });
+
+    // ── Skill Unlock Modal
+    document.getElementById('mskill-cancel').addEventListener('click', () => {
+      const d = loadData();
+      d.profile.skillSessionPromptShown = true;
+      saveData(d);
+      hideModal('modal-skill-unlock');
+      renderSettingsScreen();
+      renderTodayScreen();
+    });
+    document.getElementById('mskill-confirm').addEventListener('click', () => {
+      const d = loadData();
+      d.profile.skillSessionPromptShown = true;
+      d.profile.skillSessionEnabled = true;
+      saveData(d);
+      hideModal('modal-skill-unlock');
+      renderSettingsScreen();
+      renderTodayScreen();
     });
 
     // ═══════════════════════════════════════════════════════════════
@@ -5005,7 +5201,7 @@
         renderTodayScreen();
       } else {
         document.getElementById('s-welcome').classList.add('active');
-        document.getElementById('onboarding-version').textContent = 'v' + APP_VERSION;
+        document.getElementById('onboarding-version').textContent = 'v' + APP_VERSION + ' (' + BUILD_TIMESTAMP + ')';
         currentScreen = 's-welcome';
       }
     })();
