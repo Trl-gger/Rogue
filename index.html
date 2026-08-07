@@ -1935,9 +1935,6 @@
           <div class="session-set-counter" id="session-set-counter">SET 1 OF 3</div>
         </div>
         <div class="session-progress-bar" id="session-progress-bar" style="margin-bottom:16px;"></div>
-        <div id="session-phase-banner"
-          style="display:none;background:#ffaa00;color:#000;font-size:12px;font-weight:600;padding:8px 20px;margin:0 -20px 12px;text-align:center;line-height:1.4;">
-          Advanced Intermediate phase uses a 2-week mesocycle structure. Update your programme before continuing.</div>
         <div class="session-presc-weight" id="session-prescribed">—<span>kg</span></div>
         <div id="session-content"></div>
         <div class="scroll-pad"></div>
@@ -2204,7 +2201,7 @@
     // ENGINE — full implementation
     // ═══════════════════════════════════════════════════════════════
 
-    const APP_VERSION = '1.2.8'; // Bump this on every deployment to invalidate the service worker cache
+    const APP_VERSION = '1.3.0'; // Bump this on every deployment to invalidate the service worker cache
 
     function roundToHalf(value) { return Math.round(value * 2) / 2; }
 
@@ -2290,20 +2287,16 @@
     }
 
     function getIncrementIntermediateS2(hardestSet, allSets) {
+      // Failed to complete 3 reps in any set -> hold (stall)
+      if (allSets.some(s => s.reps < 3)) {
+        return { increment: 0, stall: true, ds: false };
+      }
+
       const { rir } = hardestSet;
       if (rir >= 2) return { increment: 2.5, stall: false, ds: false };
       if (rir === 1) return { increment: 1.25, stall: false, ds: false };
-      if (rir === 0) {
-        const missedSets = allSets.filter(s => s.rir === 0 && s.reps < 6).length;
-        if (missedSets === 0) {
-          return { increment: 0.5, stall: false, ds: false }; // clean RIR 0, hit target in all sets
-        } else if (missedSets === 1) {
-          return { increment: 0.5, stall: false, ds: false }; // missed reps in exactly 1 set
-        } else {
-          return { increment: 0, stall: true, ds: false };   // missed reps in 2+ sets
-        }
-      }
-      // rir > 0 already handled above; this branch should not be reachable
+      if (rir === 0) return { increment: 0.5, stall: false, ds: false };
+
       return { increment: 0, stall: true, ds: false };
     }
 
@@ -2314,6 +2307,13 @@
       if (reps === 4) return rir >= 1 ? { increment: 0.5, stall: false, ds: false } : { increment: 0, stall: true, ds: false };
       // 3 reps or fewer → stall
       return { increment: 0, stall: true, ds: false };
+    }
+
+    function getIncrementIntermediateS2PR({ reps, rir }) {
+      if (reps >= 6) return rir >= 1 ? { increment: 2.5, stall: false, ds: false } : { increment: 1.25, stall: false, ds: false };
+      if (reps === 5) return rir >= 1 ? { increment: 1.25, stall: false, ds: false } : { increment: 0.5, stall: false, ds: false };
+      if (reps === 4) return rir >= 1 ? { increment: 0.5, stall: false, ds: false } : { increment: 0, stall: false, ds: false };
+      return { increment: 0, stall: false, ds: false };
     }
 
     // Derive training frequency from sessionDays array
@@ -2365,9 +2365,17 @@
           }
           break;
         case 'intermediate_s2':
-          result = lastSession.sessionType === 'assistance'
-            ? getIncrementIntermediateS2Assistance(hs)
-            : getIncrementIntermediateS2(hs, lastSession.sets);
+          if (lastSession.sessionType === 'pr_s2') {
+            result = { increment: 0, prIncrement: getIncrementIntermediateS2PR(hs).increment, stall: false, ds: false };
+          } else if (lastSession.sessionType === 'deload_s2') {
+            result = { increment: 0, stall: false, ds: false };
+          } else if (exercise.s2HeavySessionsThisCycle === 0 && lastSession.sessionType === 'heavy') {
+            result = { increment: exercise.s2PendingHeavyIncrement || 0, stall: false, ds: false };
+          } else {
+            result = lastSession.sessionType === 'assistance'
+              ? getIncrementIntermediateS2Assistance(hs)
+              : getIncrementIntermediateS2(hs, lastSession.sets);
+          }
           break;
         default: result = { increment: 0, stall: false, ds: false };
       }
@@ -2413,10 +2421,10 @@
       return {
         profile: { onboardingComplete: false, setupDate: null, exportReminderCount: 0, accessoryStreak: 0, accessoryStreakPaused: false, lastAccessoryStreakCheckWeek: null, bodyweight: null, bodyweightHistory: [] },
         exercises: {
-          dips: { name: 'Weighted Dips', sessionDays: [1, 5], sessionType: 'heavy', phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, deloadCount: 0, consecutiveFailedDeloads: 0, consecutiveProgressCount: 0, isInPostDeloadTracking: false, lastDeloadDate: null, pr: null, sessions: [] },
+          dips: { name: 'Weighted Dips', sessionDays: [1, 5], sessionType: 'heavy', phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, deloadCount: 0, consecutiveFailedDeloads: 0, consecutiveProgressCount: 0, isInPostDeloadTracking: false, lastDeloadDate: null, pr: null, sessions: [], s2Week: 1, s2HeavySessionsThisCycle: 0, s2AccumulatedIncrement: 0, s2PendingHeavyIncrement: 0 },
           paused_dips: { name: 'Paused Dips', sessionDays: [3], sessionType: 'assistance', followsExercise: 'dips', currentWeight: 0, startingWeight: 0, pendingDipsIncrement: 0, sessions: [] },
-          pullups: { name: 'Weighted Pull-ups', sessionDays: [1, 5], sessionType: 'heavy', phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, deloadCount: 0, consecutiveFailedDeloads: 0, consecutiveProgressCount: 0, isInPostDeloadTracking: false, lastDeloadDate: null, pr: null, sessions: [] },
-          chinups: { name: 'Weighted Chin-ups', sessionDays: [3], sessionType: 'heavy', phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, deloadCount: 0, consecutiveFailedDeloads: 0, consecutiveProgressCount: 0, isInPostDeloadTracking: false, lastDeloadDate: null, pr: null, sessions: [] },
+          pullups: { name: 'Weighted Pull-ups', sessionDays: [1, 5], sessionType: 'heavy', phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, deloadCount: 0, consecutiveFailedDeloads: 0, consecutiveProgressCount: 0, isInPostDeloadTracking: false, lastDeloadDate: null, pr: null, sessions: [], s2Week: 1, s2HeavySessionsThisCycle: 0, s2AccumulatedIncrement: 0, s2PendingHeavyIncrement: 0 },
+          chinups: { name: 'Weighted Chin-ups', sessionDays: [3], sessionType: 'heavy', phase: null, currentWeight: 0, startingWeight: 0, sixRM: 0, oneRM: 0, stallCount: 0, deloadCount: 0, consecutiveFailedDeloads: 0, consecutiveProgressCount: 0, isInPostDeloadTracking: false, lastDeloadDate: null, pr: null, sessions: [], s2Week: 1, s2HeavySessionsThisCycle: 0, s2AccumulatedIncrement: 0, s2PendingHeavyIncrement: 0 },
           accessory_pullups: { name: 'Accessory Pull-ups', scheduledDays: [2, 4], sessions: [] },
           accessory_chinups: { name: 'Accessory Chin-ups', scheduledDays: [6, 0], sessions: [] }
         }
@@ -2456,6 +2464,10 @@
             if (ex.consecutiveFailedDeloads === undefined) ex.consecutiveFailedDeloads = 0;
             if (ex.consecutiveProgressCount === undefined) ex.consecutiveProgressCount = 0;
             if (ex.isInPostDeloadTracking === undefined) ex.isInPostDeloadTracking = false;
+            if (ex.s2Week === undefined) ex.s2Week = 1;
+            if (ex.s2HeavySessionsThisCycle === undefined) ex.s2HeavySessionsThisCycle = 0;
+            if (ex.s2AccumulatedIncrement === undefined) ex.s2AccumulatedIncrement = 0;
+            if (ex.s2PendingHeavyIncrement === undefined) ex.s2PendingHeavyIncrement = 0;
           }
         });
         return data;
@@ -2676,10 +2688,23 @@
         }
       }
 
+      const isS2Schedule = ALL_EX_IDS.some(id => data.exercises[id]?.phase === 'intermediate_s2');
+      const isS2Week2 = isS2Schedule && ALL_EX_IDS.some(id => data.exercises[id]?.phase === 'intermediate_s2' && data.exercises[id]?.s2Week === 2);
+
       let sessionType;
-      if (day === 1 || day === 5) sessionType = 'heavy';
-      else if (day === 3) sessionType = 'assistance';
-      else sessionType = 'rest';
+      if (isS2Week2) {
+        if (day === 2) sessionType = 'deload_s2';
+        else if (day === 5) sessionType = 'pr_s2';
+        else sessionType = 'rest';
+      } else if (isS2Schedule) {
+        if (day === 1 || day === 5) sessionType = 'heavy';
+        else if (day === 2 || day === 6) sessionType = 'assistance';
+        else sessionType = 'rest';
+      } else {
+        if (day === 1 || day === 5) sessionType = 'heavy';
+        else if (day === 3) sessionType = 'assistance';
+        else sessionType = 'rest';
+      }
 
       const content = document.getElementById('today-content');
       const cta = document.getElementById('today-cta');
@@ -2730,51 +2755,53 @@
         let accessoryCardHTML = '';
         let isDone = false;
 
-        if (day === 2 || day === 4) {
-          // Tuesday or Thursday — accessory pull-ups, no weekly lock, each day independent
-          accessoryExId = 'accessory_pullups';
-          const apEx = data.exercises.accessory_pullups || { sessions: [] };
-          const doneToday = apEx.sessions.some(s => s.date === todayStr);
-          isDone = doneToday;
-          if (doneToday) {
-            accessoryCardHTML = `
-          <div class="presc-card" style="margin-bottom:16px;border-left:3px solid var(--success);">
-            <div class="presc-ex-name">Accessory Pull-ups</div>
-            <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Accessory Pull-ups — done today</div>
-          </div>`;
-          } else {
-            accessoryCardHTML = `
-          <div class="presc-card" style="margin-bottom:16px;">
-            <div class="presc-ex-name">Accessory Pull-ups</div>
-            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Complete accessory session</div>
-            <button class="btn btn-secondary" id="btn-start-accessory" style="margin-top:12px;">START</button>
-          </div>`;
-          }
-        } else if (day === 6 || day === 0) {
-          // Saturday or Sunday — accessory chin-ups, weekly lock (resets Monday 00:00)
-          accessoryExId = 'accessory_chinups';
-          const acEx = data.exercises.accessory_chinups || { sessions: [] };
-          const doneThisWeek = isAccessoryDoneThisWeek('accessory_chinups');
-          isDone = doneThisWeek;
-          if (doneThisWeek) {
-            const now2 = new Date();
-            const dow = now2.getDay();
-            const diff = dow === 0 ? 6 : dow - 1;
-            const mon = new Date(now2); mon.setDate(now2.getDate() - diff); mon.setHours(0, 0, 0, 0);
-            const thisWeekSess = acEx.sessions.find(s => new Date(s.date + 'T00:00:00') >= mon);
-            const { day: dayStr } = fmtDate(thisWeekSess ? thisWeekSess.date : todayStr);
-            accessoryCardHTML = `
-          <div class="presc-card" style="margin-bottom:16px;border-left:3px solid var(--success);">
-            <div class="presc-ex-name">Accessory Chin-ups</div>
-            <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Accessory Chin-ups — done this week (${dayStr})</div>
-          </div>`;
-          } else {
-            accessoryCardHTML = `
-          <div class="presc-card" style="margin-bottom:16px;">
-            <div class="presc-ex-name">Accessory Chin-ups</div>
-            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Complete accessory session</div>
-            <button class="btn btn-secondary" id="btn-start-accessory" style="margin-top:12px;">START</button>
-          </div>`;
+        if (!isS2Schedule) {
+          if (day === 2 || day === 4) {
+            // Tuesday or Thursday — accessory pull-ups, no weekly lock, each day independent
+            accessoryExId = 'accessory_pullups';
+            const apEx = data.exercises.accessory_pullups || { sessions: [] };
+            const doneToday = apEx.sessions.some(s => s.date === todayStr);
+            isDone = doneToday;
+            if (doneToday) {
+              accessoryCardHTML = `
+            <div class="presc-card" style="margin-bottom:16px;border-left:3px solid var(--success);">
+              <div class="presc-ex-name">Accessory Pull-ups</div>
+              <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Accessory Pull-ups — done today</div>
+            </div>`;
+            } else {
+              accessoryCardHTML = `
+            <div class="presc-card" style="margin-bottom:16px;">
+              <div class="presc-ex-name">Accessory Pull-ups</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Complete accessory session</div>
+              <button class="btn btn-secondary" id="btn-start-accessory" style="margin-top:12px;">START</button>
+            </div>`;
+            }
+          } else if (day === 6 || day === 0) {
+            // Saturday or Sunday — accessory chin-ups, weekly lock (resets Monday 00:00)
+            accessoryExId = 'accessory_chinups';
+            const acEx = data.exercises.accessory_chinups || { sessions: [] };
+            const doneThisWeek = isAccessoryDoneThisWeek('accessory_chinups');
+            isDone = doneThisWeek;
+            if (doneThisWeek) {
+              const now2 = new Date();
+              const dow = now2.getDay();
+              const diff = dow === 0 ? 6 : dow - 1;
+              const mon = new Date(now2); mon.setDate(now2.getDate() - diff); mon.setHours(0, 0, 0, 0);
+              const thisWeekSess = acEx.sessions.find(s => new Date(s.date + 'T00:00:00') >= mon);
+              const { day: dayStr } = fmtDate(thisWeekSess ? thisWeekSess.date : todayStr);
+              accessoryCardHTML = `
+            <div class="presc-card" style="margin-bottom:16px;border-left:3px solid var(--success);">
+              <div class="presc-ex-name">Accessory Chin-ups</div>
+              <div style="font-size:12px;color:var(--success);font-weight:700;margin-top:4px;">✓ Accessory Chin-ups — done this week (${dayStr})</div>
+            </div>`;
+            } else {
+              accessoryCardHTML = `
+            <div class="presc-card" style="margin-bottom:16px;">
+              <div class="presc-ex-name">Accessory Chin-ups</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">Complete accessory session</div>
+              <button class="btn btn-secondary" id="btn-start-accessory" style="margin-top:12px;">START</button>
+            </div>`;
+            }
           }
         }
 
@@ -2787,31 +2814,71 @@
         }
 
         let nextSessionType, nextDayName;
-        if (day === 2) {
-          nextSessionType = 'assistance'; nextDayName = 'Wednesday';
-        } else if (day === 4) {
-          nextSessionType = 'heavy'; nextDayName = 'Friday';
-        } else if (day === 6 || day === 0) {
-          nextSessionType = 'heavy'; nextDayName = 'Monday';
+        if (isS2Week2) {
+          if (day === 1 || day === 0 || day === 6) { nextSessionType = 'deload_s2'; nextDayName = 'Tuesday'; }
+          else if (day >= 2 && day < 5) { nextSessionType = 'pr_s2'; nextDayName = 'Friday'; }
+          else { nextSessionType = 'heavy'; nextDayName = 'Monday'; }
+        } else if (isS2Schedule) {
+          if (day === 1) { nextSessionType = 'assistance'; nextDayName = 'Tuesday'; }
+          else if (day === 2) { nextSessionType = 'heavy'; nextDayName = 'Friday'; }
+          else if (day === 5) { nextSessionType = 'assistance'; nextDayName = 'Saturday'; }
+          else if (day === 6 || day === 0) { nextSessionType = 'heavy'; nextDayName = 'Monday'; }
+          else if (day === 3 || day === 4) { nextSessionType = 'heavy'; nextDayName = 'Friday'; }
+        } else {
+          if (day === 2) {
+            nextSessionType = 'assistance'; nextDayName = 'Wednesday';
+          } else if (day === 4) {
+            nextSessionType = 'heavy'; nextDayName = 'Friday';
+          } else if (day === 6 || day === 0) {
+            nextSessionType = 'heavy'; nextDayName = 'Monday';
+          }
         }
 
         let previewHTML = '';
-        if (isDone && nextSessionType) {
-          const nextExIds = nextSessionType === 'heavy' ? ['pullups', 'dips'] : ['chinups', 'paused_dips'];
-          const nextBadge = nextSessionType === 'heavy' ? 'HEAVY DAY' : 'ASSISTANCE DAY';
-          const nextBadgeCls = nextSessionType === 'heavy' ? 'heavy' : 'assist';
+        if ((isDone || isS2Schedule) && nextSessionType) {
+          let nextExIds;
+          if (nextSessionType === 'deload_s2') nextExIds = ['chinups', 'paused_dips'];
+          else if (nextSessionType === 'pr_s2') nextExIds = ['pullups', 'dips'];
+          else nextExIds = nextSessionType === 'heavy' ? ['pullups', 'dips'] : ['chinups', 'paused_dips'];
+          
+          let nextBadge;
+          if (nextSessionType === 'deload_s2') nextBadge = 'DELOAD';
+          else if (nextSessionType === 'pr_s2') nextBadge = 'PR DAY';
+          else nextBadge = nextSessionType === 'heavy' ? 'HEAVY DAY' : 'ASSISTANCE DAY';
+          
+          let nextBadgeCls;
+          if (nextSessionType === 'deload_s2') nextBadgeCls = 'assist';
+          else if (nextSessionType === 'pr_s2') nextBadgeCls = 'heavy';
+          else nextBadgeCls = nextSessionType === 'heavy' ? 'heavy' : 'assist';
 
           let nextCardsHTML = '';
           for (const exId of nextExIds) {
             const ex = data.exercises[exId];
             let displayWeight, setsText, rirText;
-            if (exId === 'paused_dips') {
+            
+            if (nextSessionType === 'deload_s2' || nextSessionType === 'pr_s2') {
+              const srcEx = exId === 'chinups' ? data.exercises['pullups'] : (exId === 'paused_dips' ? data.exercises['dips'] : ex);
+              displayWeight = roundToHalf(ex.currentWeight + (srcEx.s2AccumulatedIncrement || 0));
+              if (nextSessionType === 'deload_s2') {
+                setsText = '2 sets × 5 reps'; rirText = 'Target RIR 7';
+              } else {
+                setsText = '1 set × 3–6 reps'; rirText = 'Target RIR 0';
+              }
+            } else if (exId === 'paused_dips') {
               displayWeight = roundToHalf(ex.currentWeight + (ex.pendingDipsIncrement || 0));
               setsText = '2 sets × 5 reps'; rirText = 'Target RIR 3–4';
             } else {
               displayWeight = ex.currentWeight;
-              const rr = !ex.phase || ex.phase === 'novice' ? '8' : '6';
-              setsText = `3 sets × ${rr} reps`; rirText = 'Target RIR 1–2';
+              if (ex.phase === 'intermediate_s2') {
+                if (nextSessionType === 'heavy') {
+                  setsText = '3 sets × 3 reps'; rirText = 'Target RIR 0–2';
+                } else {
+                  setsText = '3 sets × 3–6 reps'; rirText = 'Target RIR 0–2';
+                }
+              } else {
+                const rr = !ex.phase || ex.phase === 'novice' ? '8' : '6';
+                setsText = `3 sets × ${rr} reps`; rirText = 'Target RIR 1–2';
+              }
             }
             nextCardsHTML += `
           <div class="presc-card" style="border:1px solid rgba(232,160,32,0.35);border-left:3px solid #e8a020;margin-bottom:10px;">
@@ -2874,13 +2941,21 @@
             nameExtra = ' <span style="font-size:10px;color:#444;">deload</span>';
           } else {
             displayWeight = ex.currentWeight;
-            const rr = !ex.phase || ex.phase === 'novice' ? '8' : '6';
-            setsText = `3 sets × ${rr} reps`;
-            rirText = 'Target RIR 1–2';
-            if (ex.phase === 'intermediate_s1' && sessionType === 'heavy') {
-              s1note = day === 5
-                ? `<div style="font-size:11px;color:var(--accent);margin-top:4px;font-weight:700;">⚡ PR DAY — push the last set</div>`
-                : `<div style="font-size:11px;color:#555;margin-top:4px;">Volume session · Fri is PR day</div>`;
+            if (ex.phase === 'intermediate_s2') {
+              if (sessionType === 'heavy') {
+                setsText = '3 sets × 3 reps'; rirText = 'Target RIR 0–2';
+              } else {
+                setsText = '3 sets × 3–6 reps'; rirText = 'Target RIR 0–2';
+              }
+            } else {
+              const rr = !ex.phase || ex.phase === 'novice' ? '8' : '6';
+              setsText = `3 sets × ${rr} reps`;
+              rirText = 'Target RIR 1–2';
+              if (ex.phase === 'intermediate_s1' && sessionType === 'heavy') {
+                s1note = day === 5
+                  ? `<div style="font-size:11px;color:var(--accent);margin-top:4px;font-weight:700;">⚡ PR DAY — push the last set</div>`
+                  : `<div style="font-size:11px;color:#555;margin-top:4px;">Volume session · Fri is PR day</div>`;
+              }
             }
           }
           html += `
@@ -2919,11 +2994,21 @@
       if (alreadyDoneToday) {
         // Determine next scheduled session
         let nextSessionType, nextDayName;
-        if (sessionType === 'heavy') {
-          if (day === 1) { nextSessionType = 'assistance'; nextDayName = 'Wednesday'; }
-          else { nextSessionType = 'heavy'; nextDayName = 'Monday'; }
+        if (isS2Schedule) {
+          if (sessionType === 'heavy') {
+            if (day === 1) { nextSessionType = 'assistance'; nextDayName = 'Tuesday'; }
+            else { nextSessionType = 'assistance'; nextDayName = 'Saturday'; }
+          } else {
+            if (day === 2) { nextSessionType = 'heavy'; nextDayName = 'Friday'; }
+            else { nextSessionType = 'heavy'; nextDayName = 'Monday'; }
+          }
         } else {
-          nextSessionType = 'heavy'; nextDayName = 'Friday';
+          if (sessionType === 'heavy') {
+            if (day === 1) { nextSessionType = 'assistance'; nextDayName = 'Wednesday'; }
+            else { nextSessionType = 'heavy'; nextDayName = 'Monday'; }
+          } else {
+            nextSessionType = 'heavy'; nextDayName = 'Friday';
+          }
         }
         const nextExIds = nextSessionType === 'heavy' ? ['pullups', 'dips'] : ['chinups', 'paused_dips'];
         const nextBadge = nextSessionType === 'heavy' ? 'HEAVY DAY' : 'ASSISTANCE DAY';
@@ -2938,8 +3023,16 @@
             setsText = '2 sets × 5 reps'; rirText = 'Target RIR 3–4';
           } else {
             displayWeight = ex.currentWeight;
-            const rr = !ex.phase || ex.phase === 'novice' ? '8' : '6';
-            setsText = `3 sets × ${rr} reps`; rirText = 'Target RIR 1–2';
+            if (ex.phase === 'intermediate_s2') {
+              if (nextSessionType === 'heavy') {
+                setsText = '3 sets × 3 reps'; rirText = 'Target RIR 0–2';
+              } else {
+                setsText = '3 sets × 3–6 reps'; rirText = 'Target RIR 0–2';
+              }
+            } else {
+              const rr = !ex.phase || ex.phase === 'novice' ? '8' : '6';
+              setsText = `3 sets × ${rr} reps`; rirText = 'Target RIR 1–2';
+            }
           }
           nextCardsHTML += `
         <div class="presc-card" style="border:1px solid rgba(232,160,32,0.35);border-left:3px solid #e8a020;">
@@ -3013,11 +3106,14 @@
       SS.exSessionTypes = {};
       const data = loadData();
 
+      const isS2Schedule = ALL_EX_IDS.some(id => data.exercises[id]?.phase === 'intermediate_s2');
 
       exercises.forEach(id => {
         const phase = data.exercises[id].phase;
-        if (id === 'chinups') {
-          SS.exSessionTypes[id] = 'heavy'; // chin-ups is always an independent heavy exercise
+        if (sessionType === 'deload_s2' || sessionType === 'pr_s2') {
+          SS.exSessionTypes[id] = sessionType;
+        } else if (id === 'chinups') {
+          SS.exSessionTypes[id] = (isS2Schedule && sessionType === 'assistance') ? 'assistance' : 'heavy';
         } else {
           SS.exSessionTypes[id] = (phase === 'intermediate_s1' && sessionType === 'heavy' && day === 5) ? 'pr' : sessionType;
         }
@@ -3036,13 +3132,21 @@
       const data = loadData();
       const ex = data.exercises[exId];
 
-      document.getElementById('session-ex-name').textContent = ex.name;
+      let nameHTML = ex.name;
+      if (SS.sessionType === 'deload_s2') {
+        nameHTML += ` <div style="font-size:12px;color:var(--accent);letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">DELOAD SESSION</div>`;
+      } else if (SS.sessionType === 'pr_s2') {
+        nameHTML += ` <div style="font-size:12px;color:#e8a020;letter-spacing:0.05em;text-transform:uppercase;margin-top:4px;">⚡ PR ATTEMPT</div>`;
+      }
+      document.getElementById('session-ex-name').innerHTML = nameHTML;
 
       const counterEl = document.getElementById('session-set-counter');
       if (SS.isAccessory) {
         counterEl.textContent = 'ACCESSORY';
       } else {
-        const totalSets = exId === 'paused_dips' ? 2 : 3;
+        let totalSets = 3;
+        if (SS.sessionType === 'pr_s2') totalSets = 1;
+        else if (SS.sessionType === 'deload_s2' || exId === 'paused_dips') totalSets = 2;
         counterEl.textContent = SS.view === 'exercise_complete' ? 'COMPLETE ✓' : `SET ${SS.currentSetNum} OF ${totalSets}`;
       }
 
@@ -3050,15 +3154,17 @@
         document.getElementById('session-prescribed').style.display = 'none';
       } else {
         document.getElementById('session-prescribed').style.display = '';
-        const effectiveWeight = (exId === 'paused_dips')
-          ? roundToHalf(ex.currentWeight + (ex.pendingDipsIncrement || 0))
-          : ex.currentWeight;
+        let effectiveWeight;
+        if (SS.sessionType === 'deload_s2' || SS.sessionType === 'pr_s2') {
+          const srcEx = exId === 'chinups' ? data.exercises['pullups'] : (exId === 'paused_dips' ? data.exercises['dips'] : ex);
+          effectiveWeight = roundToHalf(ex.currentWeight + (srcEx.s2AccumulatedIncrement || 0));
+        } else {
+          effectiveWeight = (exId === 'paused_dips')
+            ? roundToHalf(ex.currentWeight + (ex.pendingDipsIncrement || 0))
+            : ex.currentWeight;
+        }
         document.getElementById('session-prescribed').innerHTML = `${effectiveWeight}<span>kg</span>`;
       }
-
-      // S2 permanent warning banner — show every session, not dismissable
-      const phaseBanner = document.getElementById('session-phase-banner');
-      if (phaseBanner) phaseBanner.style.display = ex.phase === 'intermediate_s2' ? '' : 'none';
 
       // Progress dots
       const bar = document.getElementById('session-progress-bar');
@@ -3132,8 +3238,14 @@
     function getTargetLine(exId) {
       const data = loadData();
       const ex = data.exercises[exId];
+      if (SS.sessionType === 'deload_s2') return '2 × 5 reps @ RIR 7';
+      if (SS.sessionType === 'pr_s2') return '1 × 3–6 reps @ RIR 0';
       if (exId === 'paused_dips') return '2 × 5 reps @ RIR 3–4';
       if (!ex) return null; // accessory exercises: no target line
+      if (ex.phase === 'intermediate_s2') {
+        if (SS.sessionType === 'heavy') return '3 × 3 reps @ RIR 0–2';
+        if (SS.sessionType === 'assistance') return '3 × 3–6 reps @ RIR 0–2';
+      }
       const targetReps = (!ex.phase || ex.phase === 'novice') ? 8 : 6;
       return `3 × ${targetReps} reps @ RIR 1–2`;
     }
@@ -3222,7 +3334,9 @@
       SS.loggedSets[exId].push({ reps, rir });
 
       const count = SS.loggedSets[exId].length;
-      const maxSets = exId === 'paused_dips' ? 2 : 3;
+      let maxSets = 3;
+      if (SS.sessionType === 'pr_s2') maxSets = 1;
+      else if (SS.sessionType === 'deload_s2' || exId === 'paused_dips') maxSets = 2;
 
       if (count >= maxSets) {
         calcPrescription(exId);
@@ -3262,7 +3376,9 @@
         id: exId, phase: ex.phase, currentWeight: ex.currentWeight,
         stallCount: ex.stallCount || 0, sessionDays: ex.sessionDays || [],
         followsExercise: ex.followsExercise || null,
-        parentCurrentWeight: ex.followsExercise ? data.exercises[ex.followsExercise].currentWeight : null
+        parentCurrentWeight: ex.followsExercise ? data.exercises[ex.followsExercise].currentWeight : null,
+        s2HeavySessionsThisCycle: ex.s2HeavySessionsThisCycle || 0,
+        s2PendingHeavyIncrement: ex.s2PendingHeavyIncrement || 0
       };
       SS.prescriptions[exId] = getNextPrescription(exObj, { sets: SS.loggedSets[exId], sessionType: SS.exSessionTypes[exId] || SS.sessionType });
       SS.prResults[exId] = checkForPR(ex, { sets: SS.loggedSets[exId], actualWeight: ex.currentWeight });
@@ -3392,6 +3508,22 @@
                 ex.stallCount = 0; // reset so next deload starts fresh
               }
             }
+          }
+        }
+
+        if (ex.phase === 'intermediate_s2') {
+          if (SS.sessionType === 'heavy') {
+            ex.s2HeavySessionsThisCycle = (ex.s2HeavySessionsThisCycle || 0) + 1;
+            ex.s2AccumulatedIncrement = (ex.s2AccumulatedIncrement || 0) + (presc ? presc.increment : 0);
+            if (ex.s2HeavySessionsThisCycle >= 2) {
+              ex.s2Week = 2;
+              ex.s2HeavySessionsThisCycle = 0;
+            }
+          } else if (SS.sessionType === 'pr_s2') {
+            ex.s2Week = 1;
+            ex.s2HeavySessionsThisCycle = 0;
+            ex.s2AccumulatedIncrement = 0;
+            if (presc) ex.s2PendingHeavyIncrement = presc.increment;
           }
         }
 
@@ -3525,10 +3657,11 @@
         sessionDate: new Date().toISOString().split('T')[0]
       });
       SS.exSessionTypes = {};
+      const isS2Schedule = ALL_EX_IDS.some(id => data.exercises[id]?.phase === 'intermediate_s2');
       exercises.forEach(id => {
         const phase = data.exercises[id].phase;
         if (id === 'chinups') {
-          SS.exSessionTypes[id] = 'heavy';
+          SS.exSessionTypes[id] = (isS2Schedule && sessionType === 'assistance') ? 'assistance' : 'heavy';
         } else {
           SS.exSessionTypes[id] = (phase === 'intermediate_s1' && sessionType === 'heavy' && day === 5) ? 'pr' : sessionType;
         }
@@ -4351,7 +4484,7 @@
       _settingsPhaseTarget = { exId, phase: ex.phase };
       document.getElementById('mpc-title').textContent = `Update Phase — ${ex.name}`;
       const opts = document.getElementById('mpc-options');
-      const PHASES = ['novice', 'advanced_novice', 'intermediate_s1', 'intermediate_s2'];
+      const PHASES = ['novice', 'advanced_novice', 'intermediate_s1', 'intermediate_s2', 'advanced'];
       opts.innerHTML = PHASES.map(p =>
         `<button class="phase-opt-btn${p === ex.phase ? ' selected' : ''}" data-phase="${p}">${getPhaseDisplayName(p).toUpperCase()}</button>`
       ).join('');
@@ -4731,6 +4864,9 @@
 
       r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets: [{ reps: 3, rir: 1 }], sessionType: 'heavy' });
       check('AI2', 'intermediate_s2 dips heavy RIR 1 → +1.25kg', r, { increment: 1.25 });
+
+      r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets: [{ reps: 3, rir: 1 }, { reps: 3, rir: 1 }, { reps: 3, rir: 1 }], sessionType: 'heavy' });
+      check('AI2b', 'intermediate_s2 dips heavy 3x3 RIR 1 → +1.25kg', r, { increment: 1.25 });
 
       r = getNextPrescription(mkEx('dips', 'intermediate_s2', 100), { sets: [{ reps: 3, rir: 0 }], sessionType: 'heavy' });
       check('AI3', 'intermediate_s2 dips heavy RIR 0 → +0.5kg', r, { increment: 0.5 });
