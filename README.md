@@ -22,10 +22,13 @@ Based on my own weighted calisthenics programme, which draws heavily from the Ma
 | Weighted Dips | Monday / Friday | Heavy |
 | Weighted Chin-ups | Wednesday | Assistance |
 | Paused Weighted Dips | Wednesday | Assistance |
+| Muscle-ups / OAC / OAP | Saturday | Skill |
 
 Paused Dips weight derives automatically from Dips. Chin-ups and Pull-ups progress independently.
 
 Accessory Pull-ups on Tuesday/Thursday and Accessory Chin-ups on weekends are logged as completion-only — no weight, no reps, just done.
+
+Saturday Skill Sessions unlock when pull-ups or chin-ups reach Intermediate. Muscle-ups every week, alternating between One-Arm Chin-up and One-Arm Pull-up. Reps-only logging — no progression engine, no stall detection.
 
 ---
 
@@ -44,7 +47,8 @@ The engine tracks stalls per exercise, suggests deloads, and flags phase transit
 - Phase transitions you confirm manually
 - Bodyweight tracking with % BW lifted graph per exercise
 - 1RM estimate updated after every session
-- Full session history filtered by Heavy / Assistance
+- Saturday skill sessions (Muscle-ups, OAC/OAP) with form-break exit
+- Full session history filtered by Heavy / Assistance / Skill
 - JSON export and import — including on the onboarding screen
 - Automatic backup reminder every 10 sessions
 - Works offline, PWA, add to home screen
