@@ -7,8 +7,10 @@ The app implements the Mathew Zlat weighted calisthenics periodization programme
 
 ## Critical rules for every edit
 
-### 1 — Always bump the version
-Every change to `index.html` or `sw.js` must bump `APP_VERSION` in `index.html` and `CACHE` in `sw.js` to the next patch version (e.g. `1.1.8` → `1.1.9`). Without this the PWA will not update on users' devices.
+### 1 — Always bump the version and timestamp
+Every change to `index.html` or `sw.js` must:
+1. Bump `APP_VERSION` in `index.html` and `CACHE` in `sw.js` to the next patch version (e.g. `1.1.8` → `1.1.9`). Without this the PWA will not update on users' devices.
+2. Update `BUILD_TIMESTAMP` in `index.html` to the current date and time in `YYYY-MM-DD HH:MM` format (user's local time). This timestamp is displayed on the onboarding screen next to the version number so the user can verify they have the latest build.
 
 ### 2 — Never touch the progression engine without running tests
 The progression engine, stall detection logic, and phase detection are verified by an inline test suite that runs on page load. After any change, confirm the console shows:
